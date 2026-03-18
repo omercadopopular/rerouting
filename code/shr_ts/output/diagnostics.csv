@@ -1,0 +1,27 @@
+check,value
+share_rows,149751.0
+share_hs6_unique,3560.0
+import_hs6_unique_2014_china,4458.0
+matched_hs6,3067.0
+share_hs6_coverage_rate,0.8615168539325843
+import_hs6_coverage_rate,0.6879766711529834
+weight_sum_Arms and ammunition,0.9999999999999999
+weight_sum_Articles of metal,1.0
+weight_sum_Articles of wood,1.0
+weight_sum_Beverages and tobacco,1.0
+weight_sum_Chemicals,1.0
+weight_sum_Fats and oils,1.0
+weight_sum_Footwear and headwear,1.0
+weight_sum_Live animals,1.0
+weight_sum_Machinery and mechanical appliances,1.0
+weight_sum_Mineral products,1.0
+weight_sum_Misc manufactured articles,1.0
+"weight_sum_Optical, photographic, instruments",1.0
+weight_sum_Paper and pulp of wood,0.9999999999999999
+weight_sum_Plastics,1.0
+weight_sum_Precious stones and metals,1.0
+weight_sum_Skins and leather,1.0
+"weight_sum_Stone, cement, ceramic, glass",1.0
+weight_sum_Textiles,1.0
+weight_sum_Vegetable products,1.0000000000000002
+weight_sum_Vehicles and aircraft,0.9999999999999999

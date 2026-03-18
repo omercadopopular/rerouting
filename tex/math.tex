@@ -1,0 +1,44 @@
+
+\subsection{Proof of proposition 1}\label{sec:proof-1}
+
+\paragraph{Part (a)}
+
+\begin{proof}
+
+First, recall that $\ln C = \ln (A_H L) - \ln P$, with $P = [\alpha + (1-\alpha) P_F^{-(\rho-1)}]^{-\frac{1}{\rho-1}}$. Therefore,  $\ln dC/d \ln \lambda = - \ln dP/d \ln \lambda$. We can write:
+
+\begin{equation*}
+    \frac{d \ln P}{d \ln \lambda} = \frac{(1-\alpha) P_F^{-(\rho-1)}}{P^{-(\rho-1)}} \times \frac{d P_F / P_F}{d \ln \lambda} = S_F \times \frac{d \ln P_F}{d \ln \lambda} 
+\end{equation*}
+
+\noindent where $S_F$ is the expenditure sure of consumers in foreign goods. Write the price of the foreign good and the cutoff point $\omega^*$ as a function of $\lambda$:
+
+\begin{eqnarray*}
+    P_F(\lambda) &=&  \left[\int_0^1 p_{h}(\omega)^{-(\sigma-1)}d\omega \right]^{-\frac{1}{\sigma-1}} \\
+    &=& \left[\int_0^{\omega^*(\lambda)} p_{fh}(\omega)^{-(\sigma-1)}d\omega + \int_{\omega^*(\lambda)}^1 p_{rh}(\omega)^{-(\sigma-1)}d\omega \right]^{-\frac{1}{\sigma-1}} \\
+    &=& \left[ (\lambda \mu c_f)^{-(\sigma-1)} \int_0^{\omega^*(\lambda)} \tau_{fh}(\omega)^{-(\sigma-1)}d\omega + (\mu^2 c_f)^{-(\sigma-1)}\int_{\omega^*(\lambda)}^1 \tau_{fh}^R(\omega)^{-(\sigma-1)}d\omega \right]^{-\frac{1}{\sigma-1}} \\    
+    &=& \left[ (\lambda \mu c_f)^{-(\sigma-1)} \int_0^{\omega^*(\lambda)} \tau_{fh}(\omega)^{-(\sigma-1)}d\omega + (\mu^2 c_f)^{-(\sigma-1)}\int_{\omega^*(\lambda)}^1 \tau_{fh}^R(\omega)^{-(\sigma-1)}d\omega \right]^{-\frac{1}{\sigma-1}} \\    
+    &=& \left[ P_{fh}(\lambda)^{-(\sigma-1)} + P_{rh}(\lambda)^{-(\sigma-1)} \right]^{-\frac{1}{\sigma-1}} 
+\end{eqnarray*}
+
+\noindent where $P_{ih}(\lambda)$ for $i \in \{f,r\}$ denote the average prices of varieties sourced directly from $f$ or through resourcing. Let $A(\lambda)=P_{fh}(\lambda)^{-(\sigma-1)}$. Then, the marginal impact of $\lambda$ on $P_F$ is:
+
+\begin{eqnarray*}
+    \frac{d \ln P_F(\lambda)}{d \ln\lambda} &=& \frac{\lambda}{P_F(\lambda)} P_F(\lambda)^{\sigma} \left[ \frac{\mathcal{A(\lambda)}}{\lambda} + [\lambda \mu c_f \tau_{fh}(\omega^*)]^{-(\sigma-1)}  \frac{d\omega^*(\lambda)}{d \lambda} - [\mu^2 c_f \tau^R_{fh}(\omega^*)]^{-(\sigma-1)}  \frac{d\omega^*(\lambda)}{d \lambda} \right] = s_{fh}(\lambda)
+\end{eqnarray*}
+
+\noindent where the last equally follows from the fact that, at the cut-off point, $\mu \tau^R_{fh}(\omega^*) = \lambda \tau_{fh}(\omega^*)$ and $s_{fh}(\lambda) = \left( \frac{P_{hf}(\lambda)}{P_F(\lambda)} \right)^{-(\sigma-1)}$ is the share of total expenditure on foreign goods spent on goods shipped directly from $f$ to $h$. Therefore, the elasticity of welfare with respect to the scaling factor $\lambda$ is:
+
+\begin{equation}
+    \frac{d \ln C(\lambda)}{d\ln \lambda} = - S_F(\lambda) \times s_{fh}(\lambda)
+\end{equation}
+
+\noindent which results in the first part of the proof.
+\end{proof}
+
+\paragraph{Part (b)} Since wages and population are constant,  $\ln C(\lambda') - \ln C(\lambda) =  -[\ln P(\lambda') - \ln P(\lambda)]$. By the fundamental theorem of calculus:
+
+\begin{equation*}
+    \ln C(\lambda') - \ln C(\lambda) =  -\int_\lambda^{\lambda'} \frac{d \ln P(\tilde{\lambda})}{d \ln \tilde{\lambda}} d \ln \tilde{\lambda} = - \int_\lambda^{\lambda'} S_F(\tilde{\lambda}) \times s_{fh}(\tilde{\lambda})   d \ln \tilde{\lambda} = - \int_\lambda^{\lambda'} \frac{S_F(\tilde{\lambda}) \times s_{fh}(\tilde{\lambda})}{\tilde{\lambda}}   d \tilde{\lambda}   
+\end{equation*}
+

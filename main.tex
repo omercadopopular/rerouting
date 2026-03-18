@@ -1,0 +1,86 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage{times}
+\usepackage[onehalfspacing]{setspace}
+% bibliography
+\usepackage{natbib}\bibpunct{(}{)}{,}{}{}{,}
+\bibliographystyle{bib/aeaown}
+
+\usepackage{amsmath,amsfonts,amsthm}
+\usepackage{comment}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage[colorlinks,linkcolor=blue,citecolor=black,urlcolor=black]{hyperref}
+\usepackage[title,titletoc]{appendix}
+\usepackage{enumitem}
+\usepackage{subcaption}  % For subfigures
+\usepackage{lscape}      % For landscape orientation if needed
+\usepackage[noabbrev,capitalize]{cleveref}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{patterns, decorations.pathreplacing}
+
+% commands
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{assumption}{Assumption}
+\newcommand{\figpath}{fig/}
+\newcommand{\tablepath}{table/}
+\newcommand{\rmdi}{\mathrm{d}}
+
+% table and figure formatting
+%\input{formats}
+
+% page size
+\setlength{\textwidth}{\paperwidth}
+\addtolength{\textwidth}{-1.7in}
+\setlength{\oddsidemargin}{.85in}
+\addtolength{\oddsidemargin}{-.85in}
+\setlength{\evensidemargin}{\oddsidemargin}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+\setlength{\textheight}{\paperheight}
+\addtolength{\textheight}{-\headheight}
+\addtolength{\textheight}{-\headsep}
+\addtolength{\textheight}{-\footskip}
+\addtolength{\textheight}{-1.75in}
+\setlength{\topmargin}{1in}
+\addtolength{\topmargin}{-1in}
+
+\begin{document}
+
+\title{\textbf{A Simple Theory of Trade Rerouting}}
+\author{\large%
+\setcounter{footnote}{0}%
+%Carlos G\'{o}es \\[-3pt] \textit{\small World Bank Group}%
+}
+\date{\today}
+\maketitle
+
+\vspace{-0.7cm}
+\noindent\begin{abstract}\begin{singlespace}
+\noindent xxxx
+ 
+[4pt]\textbf{Keywords}: xx.
+\\[4pt] \textbf{JEL Classification}: xx
+\end{singlespace}
+\end{abstract}
+
+\newpage
+
+\section{Environment}\label{sec:environment}
+\input{tex/environment}
+
+\bibliography{bib/references}
+
+\appendix
+
+\section{Mathematical derivations}\label{sec:math}
+\input{tex/math}
+
+\end{document}

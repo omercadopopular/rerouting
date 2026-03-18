@@ -1,0 +1,23 @@
+# Ignore all data files except specific analysis configs
+data/raw/*
+data/fajgelbaum/*
+data/staging/*
+data/verification/*
+data/analysis/*
+data/reference/*
+data/rerouted_shares/*
+
+# Ignore large data files in root data/
+data/*.dta
+data/*.csv
+data/*.parquet
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ignore output figures (PNGs - keep PDFs for publication)
+*.png
