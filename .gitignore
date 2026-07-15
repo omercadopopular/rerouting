@@ -14,10 +14,14 @@ data/*.parquet
 
 # Ignore Python cache files
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 *.pyd
 .Python
+
+# Ignore local browser drivers and browser profiles used by policy-source downloads
+data/selenium-drive/
 
 # Ignore output figures (PNGs - keep PDFs for publication)
 *.png

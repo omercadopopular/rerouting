@@ -1,0 +1,1 @@
+Use compressed Parquet for machine-readable tabular artifacts expected to exceed 100,000 rows or 25 MB. CSV is limited to small human-readable summaries. Use DuckDB/Arrow projection and filtering for large Parquet files. Never serialize full regression key sets or row-level traces to CSV.
