@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -14,24 +13,14 @@ PANEL_SPECS = {
     "imports": {
         "basename": "m_flow_hs10_fm_new",
         "prefix": "m",
-        "reference": "m_flow_hs10_fm_new.dta",
         "minimal_columns": ["cty_code", "cty_name", "hs10", "hs8", "hs6", "hs4", "hs2", "year", "month", "mdate", "m_val", "m_q1"],
     },
     "exports": {
         "basename": "x_flow_hs10_fm_new",
         "prefix": "x",
-        "reference": "x_flow_hs10_fm_new.dta",
         "minimal_columns": ["cty_code", "cty_name", "hs10", "hs8", "hs6", "hs4", "hs2", "year", "month", "mdate", "x_val", "x_q1"],
     },
 }
-
-
-def _stage_metadata(config: PipelineConfig, flow: str) -> dict[str, Any]:
-    path = config.staging_dir / f"{flow}_trade_staging.metadata.json"
-    if not path.exists():
-        return {}
-    import json
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _normalize_reference_panel(df: pd.DataFrame) -> pd.DataFrame:
@@ -61,16 +50,10 @@ def _build_minimal_panel(staging_df: pd.DataFrame, prefix: str) -> pd.DataFrame:
 
 def _materialize_panel(config: PipelineConfig, flow: str) -> tuple[pd.DataFrame, dict[str, Any]]:
     spec = PANEL_SPECS[flow]
-    metadata = _stage_metadata(config, flow)
     staging_path = config.staging_dir / f"{flow}_trade_staging.parquet"
-    if metadata.get("raw_files") and any("reference_fallback" in str(item) for item in metadata.values()):
-        reference_path = config.fajgelbaum_analysis_dir / spec["reference"]
-        df = _normalize_reference_panel(read_table(reference_path))
-        return df, {"build_mode": "reference_fallback", "source": str(reference_path)}
-
     staging_df = read_table(staging_path)
     panel = _build_minimal_panel(staging_df, spec["prefix"])
-    return panel, {"build_mode": "manual_or_raw", "source": str(staging_path)}
+    return panel, {"build_mode": "raw_only", "source": str(staging_path)}
 
 
 def run_trade_panel_build(config: PipelineConfig) -> dict[str, Any]:
@@ -81,10 +64,26 @@ def run_trade_panel_build(config: PipelineConfig) -> dict[str, Any]:
         panel_df = _normalize_reference_panel(panel_df)
         parquet_path = config.analysis_dir / f"{spec['basename']}.parquet"
         dta_path = config.analysis_dir / f"{spec['basename']}.dta"
+        validation_df = panel_df.loc[
+            (panel_df["year"] > int(config.start_period[:4])) | ((panel_df["year"] == int(config.start_period[:4])) & (panel_df["month"] >= int(config.start_period[5:7])))
+        ].copy()
+        validation_df = validation_df.loc[
+            (validation_df["year"] < int(config.validation_end_period[:4]))
+            | ((validation_df["year"] == int(config.validation_end_period[:4])) & (validation_df["month"] <= int(config.validation_end_period[5:7])))
+        ].reset_index(drop=True)
+        validation_path = config.analysis_dir / f"{spec['basename']}_validation.parquet"
         write_parquet(panel_df, parquet_path, overwrite=True)
+        write_parquet(validation_df, validation_path, overwrite=True)
         write_stata_if_enabled(panel_df, dta_path, enabled=config.export_dta(), overwrite=True)
         write_data_dictionary(panel_df, config.analysis_dir / f"{spec['basename']}.dictionary.json", key_columns=["cty_name", "hs10", "year", "month"])
         dupes = int(panel_df.duplicated(subset=[column for column in ["cty_code", "cty_name", "hs10", "year", "month"] if column in panel_df.columns]).sum())
-        write_metadata_json(config.analysis_dir / f"{spec['basename']}.metadata.json", metadata | {"rows": int(len(panel_df)), "duplicate_keys": dupes})
-        outputs[flow] = {"rows": int(len(panel_df)), "outputs": {"parquet": str(parquet_path), "dta": str(dta_path) if config.export_dta() else None}, "metadata": metadata}
+        write_metadata_json(
+            config.analysis_dir / f"{spec['basename']}.metadata.json",
+            metadata | {"rows": int(len(panel_df)), "duplicate_keys": dupes, "validation_rows": int(len(validation_df)), "validation_end_period": config.validation_end_period},
+        )
+        outputs[flow] = {
+            "rows": int(len(panel_df)),
+            "outputs": {"parquet": str(parquet_path), "validation_parquet": str(validation_path), "dta": str(dta_path) if config.export_dta() else None},
+            "metadata": metadata,
+        }
     return outputs

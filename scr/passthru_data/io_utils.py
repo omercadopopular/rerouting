@@ -7,6 +7,7 @@ from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+import importlib.util
 import json
 import re
 
@@ -70,7 +71,27 @@ def normalize_country_name(value: Any) -> str | None:
 def read_table(path: Path, **kwargs: Any) -> pd.DataFrame:
     suffix = path.suffix.lower()
     if suffix == ".parquet":
-        return pd.read_parquet(path, **kwargs)
+        try:
+            return pd.read_parquet(path, **kwargs)
+        except Exception:
+            if importlib.util.find_spec("duckdb") is None:
+                raise
+            import duckdb
+
+            columns = kwargs.pop("columns", None)
+            selected = "*"
+            if columns is not None:
+                selected = ", ".join(columns)
+            escaped_path = str(path).replace("'", "''")
+            con = duckdb.connect()
+            try:
+                query = f"SELECT {selected} FROM read_parquet('{escaped_path}')"
+                if kwargs:
+                    # pandas-only kwargs are not forwarded to DuckDB.
+                    pass
+                return con.execute(query).fetchdf()
+            finally:
+                con.close()
     if suffix == ".csv":
         return pd.read_csv(path, **kwargs)
     if suffix == ".dta":

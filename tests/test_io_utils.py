@@ -1,4 +1,5 @@
-﻿from pathlib import Path
+from datetime import date
+from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -6,6 +7,7 @@ SCR = ROOT / "scr"
 if str(SCR) not in sys.path:
     sys.path.insert(0, str(SCR))
 
+from passthru_data.config import inferred_latest_complete_period
 from passthru_data.io_utils import iter_months, normalize_hs_code
 
 
@@ -17,3 +19,8 @@ def test_normalize_hs_code_preserves_leading_zeroes() -> None:
 
 def test_iter_months_is_inclusive() -> None:
     assert iter_months("2020-11", "2021-02") == ["2020-11", "2020-12", "2021-01", "2021-02"]
+
+
+def test_inferred_latest_complete_period_uses_previous_month() -> None:
+    assert inferred_latest_complete_period(date(2026, 3, 17)) == "2026-02"
+    assert inferred_latest_complete_period(date(2026, 1, 3)) == "2025-12"
