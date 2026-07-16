@@ -144,6 +144,14 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         else:
             event_result = _run_event_study_one(config, "imports", outcome, event_frame, "package_full_benchmark", _repo_relative(config, cache_path)).frame
             write_parquet(event_result, event_path, overwrite=True)
+        if not event_result.empty:
+            write_metadata_json(event_checkpoint / "manifest.json", {
+                "version": "v5", "fit_id": f"imports|event|{outcome}",
+                "source_mode": "package_full_benchmark", "source_path": _repo_relative(config, cache_path),
+                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "specification": "event: id + ct + ht; cluster hs8 + cty_code; baseline -6",
+                "outcome": outcome, "observation_count": int(event_result["nobs"].iloc[0]),
+            })
         if "dynamic" not in requested_specs:
             dynamic_result = pd.DataFrame()
         elif dynamic_path.exists() and not config.overwrite:
@@ -151,6 +159,14 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         else:
             dynamic_result = _run_dynamic_one(config, "imports", outcome, dynamic_frame, "package_full_benchmark", _repo_relative(config, cache_path)).frame
             write_parquet(dynamic_result, dynamic_path, overwrite=True)
+        if not dynamic_result.empty:
+            write_metadata_json(dynamic_checkpoint / "manifest.json", {
+                "version": "v5", "fit_id": f"imports|dynamic|{outcome}",
+                "source_mode": "package_full_benchmark", "source_path": _repo_relative(config, cache_path),
+                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "specification": "dynamic: ht + ct + cs; cluster hs8 + cty_code",
+                "outcome": outcome, "observation_count": int(dynamic_result["nobs"].iloc[0]),
+            })
         event_rows.append(event_result)
         dynamic_rows.append(dynamic_result)
         fit_audit.extend([
@@ -186,7 +202,8 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         "fixed_effects": {"event": "id + ct + ht", "dynamic": "ht + ct + cs"},
         "clusters": "hs8 + cty_code",
         "event_baseline": -6,
-        "outcomes": list(OUTCOMES),
+        "outcomes": list(requested_outcomes),
+        "specifications_attempted": sorted(requested_specs),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "package_pdf_gate": "pending comparison",
     }
