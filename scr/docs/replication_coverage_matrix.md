@@ -1,0 +1,14 @@
+# Replication coverage matrix
+
+Status reflects empirical evidence available on 2026-07-16. Synthetic tests are
+not treated as replication evidence.
+
+| Item | Original program | Source mode | Status | Latest result | Blocker |
+|---|---|---|---|---|---|
+| Figure 2 import event study | `fig_02_m_event.do` | `package_full_benchmark` | `gate_passed` | Four outcomes; 13 horizons each; max PDF difference 0.86862 | None for package gate |
+| Figure 4a import dynamic study | `fig_04_dynamic.do`, `tab_04_sigma_omega.do` | `package_full_benchmark` | `gate_passed` | Four outcomes; 13 horizons each; max PDF difference 1.00962 | Dynamic-variable equivalence should remain documented |
+| Figure 4b export dynamic study | `fig_04_dynamic.do` | `package_full_benchmark` | `blocked_missing_data` | Not attempted | Export Figure 4b is absent locally |
+| Common-sample outcome bridge | Section 301 v5 design | `raw_outcomes_package_policy` | `gate_failed` | Corrected common panel; several distance/CI thresholds fail | Outcome reconstruction and sample restrictions |
+| Independent Section 301 policy map | Section 301 source programs | `fully_raw_policy` | `gate_failed` | Existing corrected China metrics remain outside tolerance | Legal/timing/rate discrepancies |
+| 2013–2025 raw trade extension | Trade panel builders | extension v1 | `not_started` | Not built | Package/bridge gate failed |
+| February 2025 event study | Future design | 2025 policy ledger | `blocked_missing_data` | Not estimated | Versioned policy ledger incomplete |

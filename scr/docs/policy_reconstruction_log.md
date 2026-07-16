@@ -621,3 +621,13 @@ benchmark, common-sample anchor, raw-outcome bridge, and raw-policy variants. Fi
 execution IDs are tracked separately from materialized coefficient artifacts (the
 current design is 60 fits and 72 artifacts, including clones). The release gate
 remains false while the corrected China policy metrics remain outside tolerance.
+
+### 2026-07-16 — package benchmark and bridge status
+
+The corrected package cache uses the shared HS10 normalizer; the prior numeric
+`.0` conversion was recorded as stale evidence and was not resumed. The package-only
+benchmark passes the PDF-distance gate (maximum absolute difference 1.00962 log
+points across eight import fits). The raw-outcome/package-policy bridge was
+estimated on the corrected common sample, but its correlation, distance, and
+confidence-interval thresholds do not all pass. No Section 301 legal mapping was
+changed, and `ready_for_extension` remains false.

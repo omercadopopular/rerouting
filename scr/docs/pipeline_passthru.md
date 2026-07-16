@@ -306,6 +306,18 @@ The main remaining replication gap is therefore not the raw-download stage. It i
 - `--inventory-only` is the safe first command after any long pause in work.
 - The current verification report should be read as a gate before adding tariff-policy logic, not as evidence that the paper is already replicated.
 
+## 2026-07-16 corrected package benchmark and bridge gate
+
+The package cache was rebuilt with the shared HS10 normalizer after identifying
+the numeric-Stata `.0` shift (`801001090.0` had previously become `8010010900`).
+The corrected package/common key overlap is 4,199,002 rows. All eight package-only
+import fits (four Figure 2 event outcomes and four Figure 4a dynamic outcomes)
+have 13 aligned horizons. Against the frozen local vector-extraction reference,
+the maximum absolute difference is 1.00962 log points, so the package/PDF gate
+passes. The raw-outcome/package-policy bridge is complete but fails its gate for
+CI overlap and/or distance in several outcomes; Section 301 v5 and the 2025
+extension remain blocked.
+
 ## 2026-07-15 v5 replication milestone
 
 - Detailed validation, key, and timing artifacts now have canonical ZSTD Parquet paths; legacy CSVs remain fallback-only compatibility artifacts.
