@@ -101,14 +101,38 @@ def finalize_v5(config: PipelineConfig, records: Iterable[dict[str, Any]]) -> di
         raise RuntimeError(f"v5 artifact grid incomplete; missing={missing[:5]}, extra={extra[:5]}")
     out = artifact_dir(config)
     coeff = pd.DataFrame(records)
-    write_parquet(coeff, out / "section301_sensitivity_coefficients.parquet", overwrite=True)
-    write_parquet(coeff, out / "section301_sensitivity_comparison.parquet", overwrite=True)
-    write_parquet(coeff, out / "section301_sample_audit.parquet", overwrite=True)
-    write_parquet(coeff, out / "section301_source_provenance.parquet", overwrite=True)
-    coeff.head(1000).to_csv(out / "section301_sensitivity_comparison.csv", index=False)
-    coeff.head(1000).to_csv(out / "section301_sample_audit_summary.csv", index=False)
-    coeff.head(1000).to_csv(out / "section301_source_provenance_summary.csv", index=False)
-    write_metadata_json(out / "progress.json", {"version": VERSION, "completed_fit_ids": sorted(expected_fits & {str(r.get('fit_id', r['artifact_id'])) for r in records}), "completed_artifact_ids": sorted(completed_artifacts), "remaining_fits": 0, "remaining_artifacts": 0})
+    # Final artifacts have separate scientific schemas.  A single generic
+    # record table cannot truthfully serve as coefficients, sample audit, and
+    # provenance simultaneously.
+    coefficient_columns = [c for c in (
+        "artifact_id", "fit_id", "analysis", "source_mode", "window", "outcome",
+        "variant", "horizon", "estimate", "std_error", "ci_low", "ci_high",
+    ) if c in coeff.columns]
+    audit_columns = [c for c in (
+        "artifact_id", "fit_id", "source_mode", "window", "outcome", "variant",
+        "nobs", "treated_products", "sample_hash", "treatment_hash", "loss_stage",
+    ) if c in coeff.columns]
+    provenance_columns = [c for c in (
+        "artifact_id", "fit_id", "source_mode", "source_path", "source_kind",
+        "source_hash", "code_hash", "spec_hash", "sample_hash", "treatment_hash",
+    ) if c in coeff.columns]
+    write_parquet(coeff[coefficient_columns] if coefficient_columns else pd.DataFrame(), out / "section301_sensitivity_coefficients.parquet", overwrite=True)
+    write_parquet(coeff[coefficient_columns] if coefficient_columns else pd.DataFrame(), out / "section301_sensitivity_comparison.parquet", overwrite=True)
+    write_parquet(coeff[audit_columns] if audit_columns else pd.DataFrame(), out / "section301_sample_audit.parquet", overwrite=True)
+    write_parquet(coeff[provenance_columns] if provenance_columns else pd.DataFrame(), out / "section301_source_provenance.parquet", overwrite=True)
+    def _summary(columns: list[str], preferred: tuple[str, ...]) -> pd.DataFrame:
+        if not columns:
+            return pd.DataFrame({"rows": [len(coeff)]})
+        keys = [c for c in preferred if c in coeff.columns]
+        if not keys:
+            return pd.DataFrame({"rows": [len(coeff)]})
+        return coeff[columns].groupby(keys, dropna=False).size().reset_index(name="rows")
+
+    _summary(coefficient_columns, ("analysis", "outcome", "variant")).to_csv(out / "section301_sensitivity_comparison.csv", index=False)
+    _summary(audit_columns, ("source_mode", "window", "outcome")).to_csv(out / "section301_sample_audit_summary.csv", index=False)
+    _summary(provenance_columns, ("source_kind", "source_mode")).to_csv(out / "section301_source_provenance_summary.csv", index=False)
+    completed_fits = expected_fits & {str(r.get("fit_id", r["artifact_id"])) for r in records if r.get("status") != "clone"}
+    write_metadata_json(out / "progress.json", {"version": VERSION, "completed_fit_ids": sorted(completed_fits), "completed_artifact_ids": sorted(completed_artifacts), "remaining_fits": len(expected_fits - completed_fits), "remaining_artifacts": len(expected_artifacts - completed_artifacts)})
     write_metadata_json(out / "pipeline_manifest.json", {"version": VERSION, "expected_fits": len(expected_fits), "expected_artifacts": len(expected_artifacts), "completed_artifacts": len(completed_artifacts), "ready_for_extension": False})
     write_metadata_json(out / "section301_sensitivity_summary.json", {"version": VERSION, "ready_for_extension": False, "legal_mapping_changed": False})
     clear_current_fit(config)

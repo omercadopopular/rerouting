@@ -109,7 +109,18 @@ def write_parquet(df: pd.DataFrame, path: Path, overwrite: bool = True) -> Path:
     # ZSTD is the repository-wide canonical compression for machine-readable
     # tabular artifacts.  Keeping this in the shared writer prevents individual
     # pipeline stages from silently producing uncompressed, oversized files.
-    df.to_parquet(path, index=False, compression="zstd")
+    # Write beside the destination and replace only after serialization
+    # succeeds.  This prevents interrupted estimators from leaving a
+    # truncated artifact that later appears to be a valid checkpoint.
+    temporary = path.with_name(f".{path.name}.tmp")
+    if temporary.exists():
+        temporary.unlink()
+    try:
+        df.to_parquet(temporary, index=False, compression="zstd")
+        temporary.replace(path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
     return path
 
 
@@ -145,8 +156,12 @@ def _json_default(value: Any) -> Any:
 
 def write_metadata_json(path: Path, payload: dict[str, Any]) -> Path:
     ensure_dir(path.parent)
-    with path.open("w", encoding="utf-8") as handle:
+    temporary = path.with_name(f".{path.name}.tmp")
+    if temporary.exists():
+        temporary.unlink()
+    with temporary.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True, default=_json_default)
+    temporary.replace(path)
     return path
 
 
