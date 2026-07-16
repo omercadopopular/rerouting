@@ -133,7 +133,7 @@ def write_parquet(df: pd.DataFrame, path: Path, overwrite: bool = True) -> Path:
     try:
         df.to_parquet(temporary, index=False, compression="zstd")
         import pyarrow.parquet as pq
-        table = pq.read_table(temporary)
+        table = pq.ParquetFile(temporary).read()
         if list(table.column_names) != list(df.columns) or table.num_rows != len(df):
             raise ValueError("Parquet validation failed: schema or row count mismatch")
         row_group = pq.ParquetFile(temporary).metadata.row_group(0)

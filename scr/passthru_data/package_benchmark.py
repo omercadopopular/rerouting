@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import hashlib
+import inspect
 import json
 import uuid
 
@@ -25,6 +26,7 @@ from .trade_regressions import _prepare_dynamic, _prepare_event_study, _run_dyna
 
 
 OUTCOMES = ("val", "q1", "p", "pduty")
+EXPECTED_FIT_IDS = {f"imports|{spec}|{outcome}" for spec in ("event", "dynamic") for outcome in OUTCOMES}
 
 PACKAGE_COLUMNS = [
     "id", "cty_code", "cty_name", "hs10", "hs8", "hs6", "hs4", "hs2",
@@ -38,6 +40,56 @@ def package_benchmark_dir(config: PipelineConfig) -> Path:
     path = config.verification_dir / "trade_regressions" / "package_benchmark_v5"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _normalized_source(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _normalized_file_fingerprint(path: Path) -> str:
+    if not path.exists():
+        return "missing"
+    return hashlib.sha256(_normalized_source(path.read_text(encoding="utf-8")).encode("utf-8")).hexdigest()
+
+
+def estimator_fingerprint(config: PipelineConfig) -> str:
+    """Fingerprint only estimator-relevant code and original specifications."""
+    functions = (_prepare_event_study, _prepare_dynamic, _run_event_study_one, _run_dynamic_one)
+    stata = {
+        name: _normalized_file_fingerprint(config.fajgelbaum_root / "code" / "main" / filename)
+        for name, filename in {
+            "fig02": "fig_02_m_event.do",
+            "fig04": "fig_04_dynamic.do",
+            "sigma_omega": "tab_04_sigma_omega.do",
+        }.items()
+    }
+    payload = {
+        "functions": {fn.__name__: _normalized_source(inspect.getsource(fn)) for fn in functions},
+        "stata": stata,
+        "outcomes": OUTCOMES,
+        "event": {"baseline": -6, "horizons": list(range(-6, 7)), "fixed_effects": "id + ct + ht", "clusters": "hs8 + cty_code"},
+        "dynamic": {"horizons": list(range(-6, 7)), "fixed_effects": "ht + ct + cs", "clusters": "hs8 + cty_code"},
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def specification_fingerprint(config: PipelineConfig) -> str:
+    payload = {
+        "source_mode": "package_full_benchmark",
+        "source_path": _repo_relative(config, config.fajgelbaum_analysis_dir / "m_flow_hs10_fm_new.dta"),
+        "paper_window": [PAPER_START_PERIOD, PAPER_END_PERIOD],
+        "outcomes": list(OUTCOMES),
+        "event_baseline": -6,
+        "event_fixed_effects": "id + ct + ht",
+        "dynamic_fixed_effects": "ht + ct + cs",
+        "clusters": "hs8 + cty_code",
+        "singleton_behavior": "original Stata behavior",
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def orchestration_code_fingerprint() -> str:
+    return _normalized_file_fingerprint(Path(__file__))
 
 
 def build_pdf_reference(config: PipelineConfig) -> dict[str, Any]:
@@ -118,9 +170,12 @@ def finalize_package_pdf_comparison(config: PipelineConfig) -> dict[str, Any]:
     manifest_path = out_dir / "package_full_manifest.json"
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["package_pdf_gate"] = payload["status"]
-        manifest["package_pdf_comparison_manifest"] = _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")
-        write_metadata_json(manifest_path, manifest)
+        if manifest.get("status") == "complete" and manifest.get("completed_fit_count") == len(EXPECTED_FIT_IDS) and manifest.get("expected_fit_count") == len(EXPECTED_FIT_IDS):
+            manifest["package_pdf_gate"] = payload["status"]
+            manifest["package_pdf_comparison_manifest"] = _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")
+            write_metadata_json(manifest_path, manifest)
+        else:
+            write_metadata_json(out_dir / "package_pdf_comparison_blocked_manifest.json", {"version": "v5", "status": "blocked", "reason": "package_full_manifest is partial or incomplete", "comparison_manifest": _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")})
     (out_dir / "package_benchmark_report.md").write_text(
         "# Package-full benchmark v5\n\n"
         "The package-only benchmark uses the authors' estimation data and does not join raw Census keys.\n\n"
@@ -332,7 +387,9 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
     requested_outcomes = (config.regression_outcome,) if config.regression_outcome in OUTCOMES else OUTCOMES
     event_frame = _prepare_event_study("imports", frame) if "event" in requested_specs else None
     dynamic_frame = _prepare_dynamic("imports", frame) if "dynamic" in requested_specs else None
-    code_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    estimator_hash = estimator_fingerprint(config)
+    orchestration_hash = orchestration_code_fingerprint()
+    specification_hash = specification_fingerprint(config)
     event_sample_hash = hashlib.sha256(pd.util.hash_pandas_object(event_frame[["id", "cty_code", "hs10", "year", "month"]], index=False).values.tobytes()).hexdigest() if event_frame is not None else None
     dynamic_sample_hash = hashlib.sha256(pd.util.hash_pandas_object(dynamic_frame[["id", "cty_code", "hs10", "year", "month"]], index=False).values.tobytes()).hexdigest() if dynamic_frame is not None else None
     event_rows: list[pd.DataFrame] = []
@@ -346,7 +403,8 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
                 payload.get("version") == "v5"
                 and payload.get("fit_id") == f"imports|{spec}|{outcome}"
                 and payload.get("source_fingerprint") == _fingerprint(cache_path)
-                and payload.get("code_fingerprint") == code_hash
+                and payload.get("estimator_fingerprint") == estimator_hash
+                and payload.get("specification_fingerprint") == specification_hash
             )
         except (OSError, json.JSONDecodeError):
             return False
@@ -368,7 +426,9 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
             write_metadata_json(event_checkpoint / "manifest.json", {
                 "version": "v5", "fit_id": f"imports|event|{outcome}",
                 "source_mode": "package_full_benchmark", "source_path": _repo_relative(config, cache_path),
-                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": code_hash,
+                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": orchestration_hash,
+                "estimator_fingerprint": estimator_hash, "orchestration_code_fingerprint": orchestration_hash,
+                "specification_fingerprint": specification_hash,
                 "specification": "event: id + ct + ht; cluster hs8 + cty_code; baseline -6",
                 "outcome": outcome, "observation_count": int(event_result["nobs"].iloc[0]), "sample_hash": event_sample_hash,
             })
@@ -384,7 +444,9 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
             write_metadata_json(dynamic_checkpoint / "manifest.json", {
                 "version": "v5", "fit_id": f"imports|dynamic|{outcome}",
                 "source_mode": "package_full_benchmark", "source_path": _repo_relative(config, cache_path),
-                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": code_hash,
+                "source_fingerprint": _fingerprint(cache_path), "code_fingerprint": orchestration_hash,
+                "estimator_fingerprint": estimator_hash, "orchestration_code_fingerprint": orchestration_hash,
+                "specification_fingerprint": specification_hash,
                 "specification": "dynamic: ht + ct + cs; cluster hs8 + cty_code",
                 "outcome": outcome, "observation_count": int(dynamic_result["nobs"].iloc[0]), "sample_hash": dynamic_sample_hash,
             })
@@ -395,15 +457,34 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         if not dynamic_result.empty:
             dynamic_rows.append(dynamic_result)
             fit_audit.append({"source_mode": "package_full_benchmark", "spec": "dynamic", "outcome": outcome, "rows": int(dynamic_result["nobs"].iloc[0]), "checkpoint": _repo_relative(config, dynamic_path)})
-    event = pd.concat(event_rows, ignore_index=True) if event_rows else pd.DataFrame()
-    dynamic = pd.concat(dynamic_rows, ignore_index=True) if dynamic_rows else pd.DataFrame()
     event_path = out_dir / "package_full_event_coefficients.parquet"
     dynamic_path = out_dir / "package_full_dynamic_coefficients.parquet"
-    complete = len(fit_audit) == len(requested_specs) * len(requested_outcomes)
-    if complete and not event.empty:
+    valid_global: list[tuple[str, str, pd.DataFrame, dict[str, Any]]] = []
+    for spec in ("event", "dynamic"):
+        for outcome in OUTCOMES:
+            directory = out_dir / "checkpoints" / spec / outcome
+            if not checkpoint_valid(directory, spec, outcome):
+                continue
+            coefficient_path = directory / "coefficients.parquet"
+            audit_path = directory / "sample_audit.parquet"
+            manifest_path = directory / "manifest.json"
+            if not coefficient_path.exists() or not audit_path.exists():
+                continue
+            coefficient = read_table(coefficient_path)
+            horizon_column = "event_time" if "event_time" in coefficient.columns else "horizon"
+            if coefficient[horizon_column].nunique() != 13:
+                continue
+            checkpoint_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            valid_global.append((spec, outcome, coefficient, checkpoint_manifest))
+    global_complete = len(valid_global) == len(EXPECTED_FIT_IDS)
+    if global_complete:
+        event = pd.concat([item[2] for item in valid_global if item[0] == "event"], ignore_index=True)
+        dynamic = pd.concat([item[2] for item in valid_global if item[0] == "dynamic"], ignore_index=True)
         write_parquet(event, event_path, overwrite=True)
-    if complete and not dynamic.empty:
         write_parquet(dynamic, dynamic_path, overwrite=True)
+    else:
+        event = pd.DataFrame()
+        dynamic = pd.DataFrame()
     keys = frame[[c for c in ("id", "cty_code", "hs10", "year", "month") if c in frame.columns]].drop_duplicates()
     sample_hash = hashlib.sha256(pd.util.hash_pandas_object(keys, index=False).values.tobytes()).hexdigest()
     sample_audit = pd.DataFrame(fit_audit)
@@ -411,8 +492,9 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
     sample_audit["sample_hash"] = sample_hash
     sample_audit["start_period"] = PAPER_START_PERIOD
     sample_audit["end_period"] = PAPER_END_PERIOD
-    if complete:
+    if global_complete:
         write_parquet(sample_audit, out_dir / "package_full_sample_audit.parquet", overwrite=True)
+    valid_fit_ids = sorted(f"imports|{spec}|{outcome}" for spec, outcome, _, _ in valid_global)
     manifest = {
         "version": "v5",
         "source_mode": "package_full_benchmark",
@@ -420,23 +502,27 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         "source_fingerprint": _fingerprint(config.fajgelbaum_analysis_dir / "m_flow_hs10_fm_new.dta"),
         "cache_path": _repo_relative(config, cache_path),
         "cache_fingerprint": _fingerprint(cache_path),
-        "code_fingerprint": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "code_fingerprint": orchestration_hash,
+        "estimator_fingerprint": estimator_hash,
+        "orchestration_code_fingerprint": orchestration_hash,
+        "specification_fingerprint": specification_hash,
         "sample_hash": sample_hash,
         "observation_count": int(len(frame)),
         "fixed_effects": {"event": "id + ct + ht", "dynamic": "ht + ct + cs"},
         "clusters": "hs8 + cty_code",
         "event_baseline": -6,
-        "outcomes": list(requested_outcomes),
-        "specifications_attempted": sorted(requested_specs),
+        "outcomes": list(OUTCOMES) if global_complete else list(requested_outcomes),
+        "specifications_attempted": ["event", "dynamic"] if global_complete else sorted(requested_specs),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "package_pdf_gate": "pending comparison",
-        "status": "complete" if complete and requested_specs == {"event", "dynamic"} and set(requested_outcomes) == set(OUTCOMES) else "partial",
-        "completed_fit_count": len(fit_audit),
-        "expected_fit_count": len(requested_specs) * len(requested_outcomes),
+        "status": "complete" if global_complete else "partial",
+        "completed_fit_count": len(valid_global),
+        "expected_fit_count": len(EXPECTED_FIT_IDS),
+        "completed_fit_ids": valid_fit_ids,
     }
-    if not complete:
+    if not global_complete:
         write_metadata_json(out_dir / "package_full_partial_manifest.json", manifest)
-        return {"status": "partial", "completed_fit_count": len(fit_audit), "expected_fit_count": len(requested_specs) * len(requested_outcomes), "manifest": str(out_dir / "package_full_partial_manifest.json")}
+        return {"status": "partial", "completed_fit_count": len(valid_global), "expected_fit_count": len(EXPECTED_FIT_IDS), "manifest": str(out_dir / "package_full_partial_manifest.json")}
     write_metadata_json(out_dir / "package_full_manifest.json", manifest)
     (out_dir / "package_benchmark_report.md").write_text(
         "# Package-full benchmark v5\n\n"
