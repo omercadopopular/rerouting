@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .config import PipelineConfig
-from .io_utils import read_table, write_metadata_json, write_parquet
+from .io_utils import read_table, sha256_file, write_metadata_json, write_parquet
 
 
 OUTCOMES = ("val", "q1", "p", "pduty")
@@ -151,7 +151,46 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
                     **curve_metrics(merged, exclude_baseline=exclude_baseline),
                 })
     pd.DataFrame(sensitivity).to_csv(out / "bridge_metric_sensitivity.csv", index=False)
-    manifest = {"version": "v5", "created_at_utc": datetime.now(timezone.utc).isoformat(), "package_path": _relative(config, package), "raw_path": _relative(config, raw), "equivalence_path": _relative(config, out / "bridge_outcome_equivalence.parquet"), "status": "diagnostic", "v5_ready": False}
+    summary = equivalence.loc[equivalence["breakdown"] == "all"].copy()
+    summary_path = out / "bridge_outcome_equivalence_summary.csv"
+    sensitivity_frame = pd.DataFrame(sensitivity)
+    classifications = []
+    for row in sensitivity_frame.loc[sensitivity_frame["exclude_baseline"] == False].itertuples():
+        failed = []
+        if row.correlation < 0.95:
+            failed.append("correlation")
+        if row.rmse > 1.25:
+            failed.append("rmse")
+        if row.max_abs_difference > 2.50:
+            failed.append("max_abs_difference")
+        if row.ci_overlap < 0.80:
+            failed.append("ci_overlap")
+        classifications.append({"spec": row.spec, "outcome": row.outcome, "classification": "passed" if not failed else "failed_registered_metric", "failed_metrics": failed})
+    write_metadata_json(out / "bridge_metric_classification.json", {"version": "v5", "classifications": classifications})
+    manifest = {"version": "v5", "created_at_utc": datetime.now(timezone.utc).isoformat(), "package_path": _relative(config, package), "raw_path": _relative(config, raw), "package_sha256": sha256_file(package), "raw_sha256": sha256_file(raw), "equivalence_path": _relative(config, out / "bridge_outcome_equivalence.parquet"), "equivalence_rows": int(len(equivalence)), "scale_convention": PACKAGE_TO_RAW_SCALE, "status": "diagnostic", "v5_ready": False}
     write_metadata_json(out / "bridge_diagnosis_manifest.json", manifest)
-    (out / "bridge_diagnosis_report.md").write_text("# Bridge diagnosis\n\nThis report diagnoses outcome and sample differences. It does not alter policy semantics or release v5.\n", encoding="utf-8")
+    lines = [
+        "# Bridge diagnosis",
+        "",
+        "This report diagnoses outcome and sample differences. It does not alter policy semantics or release v5.",
+        "",
+        "## Level-equivalence conventions",
+        "",
+        "Package value and quantity are multiplied by 1,000,000 for comparison with raw Census levels. Prices and duty-inclusive prices are compared without a level multiplier.",
+        "",
+        "## Outcome equivalence",
+        "",
+        summary.to_markdown(index=False),
+        "",
+        "## Registered regression metrics",
+        "",
+        sensitivity_frame.loc[sensitivity_frame["exclude_baseline"] == False].to_markdown(index=False),
+        "",
+        "## Classification",
+        "",
+        pd.DataFrame(classifications).to_markdown(index=False),
+        "",
+        "The raw bridge remains diagnostic; Section 301 v5 empirical estimation is not released by this report.",
+    ]
+    (out / "bridge_diagnosis_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return manifest
