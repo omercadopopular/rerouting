@@ -30,7 +30,7 @@ from passthru_data.raw_replication_validation import (
 )
 from passthru_data.build_rerouting_controls import run_build_rerouting_controls
 from passthru_data.build_trade_workhorse_panels import run_trade_workhorse_panel_build
-from passthru_data.config import PipelineConfig, selected_steps
+from passthru_data.config import PipelineConfig, selected_steps, validate_only_step_inputs
 from passthru_data.download_concordances import run_concordance_download
 from passthru_data.download_cpi import build_cpi_inventory, run_cpi_download
 from passthru_data.download_trade import build_trade_inventory, run_trade_download
@@ -70,7 +70,7 @@ def run_rtp_long_horizon_2018_event(config: PipelineConfig):
 
 def run_section301_regression_sensitivity_step(config: PipelineConfig):
     """Load regression dependencies only when the Section 301 sensitivity step is selected."""
-    from passthru_data.section301_regression_sensitivity_v4 import run_section301_regression_sensitivity as runner
+    from passthru_data.section301_regression_sensitivity_v5 import run_section301_regression_sensitivity as runner
 
     return runner(config)
 
@@ -121,6 +121,8 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     try:
+        if config.only_step:
+            validate_only_step_inputs(config, config.only_step)
         if config.inventory_only:
             inventory = {
                 "trade": build_trade_inventory(config),

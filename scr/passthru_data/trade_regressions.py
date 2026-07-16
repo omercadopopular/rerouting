@@ -14,7 +14,7 @@ import pandas as pd
 import pyfixest as pf
 
 from .config import PipelineConfig
-from .io_utils import read_table, write_metadata_json
+from .io_utils import read_table, write_metadata_json, write_parquet
 from .trade_regression_common import (
     REGRESSION_OUTCOMES,
     WORKHORSE_SPECS,
@@ -305,7 +305,7 @@ def run_trade_regressions(config: PipelineConfig) -> dict[str, Any]:
                 existing = existing.loc[~existing["outcome"].isin(requested_outcomes)].copy()
                 event_df = pd.concat([existing, event_df], ignore_index=True)
             event_df = event_df.sort_values(["outcome", "event_time"]).reset_index(drop=True)
-            event_df.to_parquet(event_path, index=False)
+            write_parquet(event_df, event_path, overwrite=True)
             event_df.to_csv(event_path.with_suffix(".csv"), index=False)
             outputs["event"][flow] = {"rows": int(len(event_df)), "parquet": str(event_path), "csv": str(event_path.with_suffix(".csv"))}
         if "dynamic" in requested_specs:
@@ -320,7 +320,7 @@ def run_trade_regressions(config: PipelineConfig) -> dict[str, Any]:
                 existing = existing.loc[~existing["outcome"].isin(requested_outcomes)].copy()
                 dynamic_df = pd.concat([existing, dynamic_df], ignore_index=True)
             dynamic_df = dynamic_df.sort_values(["outcome", "horizon"]).reset_index(drop=True)
-            dynamic_df.to_parquet(dynamic_path, index=False)
+            write_parquet(dynamic_df, dynamic_path, overwrite=True)
             dynamic_df.to_csv(dynamic_path.with_suffix(".csv"), index=False)
             outputs["dynamic"][flow] = {"rows": int(len(dynamic_df)), "parquet": str(dynamic_path), "csv": str(dynamic_path.with_suffix(".csv"))}
 

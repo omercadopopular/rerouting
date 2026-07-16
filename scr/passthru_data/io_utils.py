@@ -106,7 +106,10 @@ def write_parquet(df: pd.DataFrame, path: Path, overwrite: bool = True) -> Path:
     ensure_dir(path.parent)
     if path.exists() and not overwrite:
         return path
-    df.to_parquet(path, index=False)
+    # ZSTD is the repository-wide canonical compression for machine-readable
+    # tabular artifacts.  Keeping this in the shared writer prevents individual
+    # pipeline stages from silently producing uncompressed, oversized files.
+    df.to_parquet(path, index=False, compression="zstd")
     return path
 
 

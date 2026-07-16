@@ -43,6 +43,92 @@ STEP_NAMES = (
     "build_china_301_trace",
 )
 
+# Explicit dependency graph for the production pipeline.  Archived policy
+# steps remain opt-in, but their prerequisites are recorded so ``--only-step``
+# can fail clearly instead of running an unrelated subset implicitly.
+PIPELINE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "download_trade": (),
+    "download_cpi": (),
+    "download_concordances": ("download_trade",),
+    "download_policy_sources": (),
+    "download_policy_updates": ("download_policy_sources",),
+    "build_hs10_codes": ("download_trade", "download_concordances"),
+    "build_hs6_bec": ("download_concordances",),
+    "build_cpi_hs6x": ("download_cpi", "build_hs10_codes"),
+    "build_trade_panels": ("download_trade", "build_hs10_codes"),
+    "build_imports_with_package_shocks": ("build_trade_panels",),
+    "build_rerouting_controls": ("build_trade_panels",),
+    "run_rerouting_regressions": ("build_rerouting_controls", "build_imports_with_package_shocks"),
+    "audit_trade_regression_sources": ("build_trade_panels",),
+    "build_trade_workhorse_panels": ("build_trade_panels",),
+    "run_trade_regressions": ("build_trade_workhorse_panels", "audit_trade_regression_sources"),
+    "plot_trade_regressions": ("run_trade_regressions",),
+    "verify_data": ("build_trade_panels",),
+    "build_hts_monthly_schedule": ("download_policy_sources", "download_policy_updates"),
+    "build_tradewar_overlay_raw": ("build_hts_monthly_schedule",),
+    "build_us_products_partner_hs10_panel": ("build_trade_panels", "build_tradewar_overlay_raw"),
+    "build_section301_import_panel": ("build_us_products_partner_hs10_panel",),
+    "validate_raw_replication_imports": ("build_section301_import_panel",),
+    "validate_raw_replication_imports_china_current": ("build_section301_import_panel",),
+    "validate_raw_replication_imports_china_semantics_corrected": ("build_section301_import_panel",),
+    "build_china_301_trace": ("validate_raw_replication_imports_china_semantics_corrected",),
+    "run_section301_regression_sensitivity": ("build_section301_import_panel", "build_trade_workhorse_panels"),
+    "build_rtp_long_horizon_panel": ("build_trade_workhorse_panels",),
+    "run_rtp_long_horizon_2018_event": ("build_rtp_long_horizon_panel",),
+    "build_rtp_2025_ieepa_event_panel": ("build_rtp_long_horizon_panel",),
+}
+
+
+def pipeline_topological_order() -> tuple[str, ...]:
+    """Return a deterministic topological ordering and reject cycles."""
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    order: list[str] = []
+
+    def visit(step: str) -> None:
+        if step in visiting:
+            raise ValueError(f"Pipeline dependency cycle detected at '{step}'")
+        if step in visited:
+            return
+        visiting.add(step)
+        for dependency in PIPELINE_DEPENDENCIES.get(step, ()):
+            if dependency not in STEP_NAMES:
+                raise ValueError(f"Unknown pipeline dependency '{dependency}' for '{step}'")
+            visit(dependency)
+        visiting.remove(step)
+        visited.add(step)
+        order.append(step)
+
+    for step in STEP_NAMES:
+        visit(step)
+    return tuple(order)
+
+
+def required_artifacts_for_step(config: "PipelineConfig", step: str) -> tuple[Path, ...]:
+    """Return only concrete prerequisites that can be checked locally.
+
+    The graph records logical dependencies; this function supplies a small set
+    of canonical artifacts for the most commonly invoked ``--only-step`` paths.
+    """
+    checks: dict[str, tuple[Path, ...]] = {
+        "build_trade_panels": (config.staging_dir / "trade" / "imports.parquet",),
+        "build_trade_workhorse_panels": (config.analysis_dir / "trade_imports_hs10.parquet",),
+        "build_section301_import_panel": (config.analysis_dir / "tradewar_overlay_raw.parquet",),
+        "run_trade_regressions": (config.analysis_dir / "trade_imports_hs10.parquet",),
+        "run_section301_regression_sensitivity": (
+            config.verification_dir / "raw_replication_imports" / "china_301_semantics_corrected_gate.json",
+        ),
+    }
+    return checks.get(step, ())
+
+
+def validate_only_step_inputs(config: "PipelineConfig", step: str) -> None:
+    missing = [str(path) for path in required_artifacts_for_step(config, step) if not path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"--only-step {step} requires missing or stale prerequisite artifact(s): " + ", ".join(missing)
+        )
+
 ARCHIVED_POLICY_STEPS = {
     "download_policy_sources",
     "download_policy_updates",
@@ -206,7 +292,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def selected_steps(config: PipelineConfig) -> Iterable[str]:
-    for step in STEP_NAMES:
+    # Always iterate in dependency order.  For ``--only-step`` retain the
+    # historical meaning: emit exactly the requested step and never run its
+    # prerequisites implicitly.
+    steps = (config.only_step,) if config.only_step else pipeline_topological_order()
+    for step in steps:
+        if step is None:
+            continue
         if step in ARCHIVED_POLICY_STEPS and not config.enable_archived_policy_pipeline:
             continue
         if step in OPT_IN_STEPS and config.only_step != step:

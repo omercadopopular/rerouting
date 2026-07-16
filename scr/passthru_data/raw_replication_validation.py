@@ -1408,6 +1408,10 @@ def build_china_301_universe_trace_from_artifacts(config: PipelineConfig) -> dic
     trace = trace.sort_values(["corrected_missing_raw_scope", "current_missing_raw_scope", "cty_code", "hs10", "year", "month"], ascending=[False, False, True, True, True, True]).reset_index(drop=True)
 
     trace_path = output_dir / "raw_replication_china_301_universe_trace.csv"
+    # Canonical row-level artifact; retain the legacy CSV for backward-
+    # compatible diagnostics and existing downstream readers.
+    write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
+    write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
     trace.to_csv(trace_path, index=False)
 
     by_country = (
@@ -2233,6 +2237,7 @@ def build_china_301_statutory_component_trace_from_artifacts(
     ).reset_index(drop=True)
 
     trace_path = output_dir / _artifact_name("raw_replication_china_301_statutory_component_trace", artifact_suffix)
+    write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
     trace.to_csv(trace_path, index=False)
 
     summary = _build_china_301_statutory_component_summary(trace, top_n=None)
@@ -2740,7 +2745,9 @@ def build_china_301_rate_timing_trace_from_artifacts(config: PipelineConfig, art
         "overlay_hs8_month_present",
         "diagnosed_stage",
     ]
-    if rate_trace_path.suffix.lower() == ".csv":
+    if rate_trace_path.suffix.lower() == ".csv" and rate_trace_path.with_suffix(".parquet").exists():
+        trace = read_table(rate_trace_path.with_suffix(".parquet"), columns=columns)
+    elif rate_trace_path.suffix.lower() == ".csv":
         trace = pd.read_csv(rate_trace_path, usecols=lambda col: col in set(columns))
     else:
         trace = read_table(rate_trace_path, columns=columns)
@@ -2929,6 +2936,7 @@ def build_china_301_rate_timing_trace_from_artifacts(config: PipelineConfig, art
     timing_trace["raw_vs_ref_active_share_gap_pp"] = share_gap_pp
 
     timing_trace_path = output_dir / _artifact_name("raw_replication_china_301_rate_timing_trace", artifact_suffix)
+    write_parquet(timing_trace, timing_trace_path.with_suffix(".parquet"), overwrite=True)
     timing_trace.to_csv(timing_trace_path, index=False)
 
     by_month = (
@@ -3362,6 +3370,7 @@ def build_china_301_benchmark_definition_trace_from_artifacts(
         ascending=[True, True, False, True, True, True],
     ).reset_index(drop=True)
 
+    write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
     trace.to_csv(trace_path, index=False)
     by_rule = (
         trace.groupby(["raw_panel_rule_code", "overlay_rule_code", "discrepancy_type", "diagnosed_stage"], dropna=False, observed=True)

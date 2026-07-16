@@ -13,6 +13,7 @@ data/*.csv
 data/*.parquet
 
 # Ignore Python cache files
+.venv/
 __pycache__/
 .pytest_cache/
 *.pyc
