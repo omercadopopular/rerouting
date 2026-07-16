@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import json
 
+import numpy as np
 import pandas as pd
 
 from .config import PipelineConfig
@@ -24,6 +25,24 @@ def ci_overlap(low_left: float, high_left: float, low_right: float, high_right: 
     if denominator <= 0:
         return None
     return max(0.0, min(high_left, high_right) - max(low_left, low_right)) / denominator
+
+
+def curve_metrics(merged: pd.DataFrame, *, exclude_baseline: bool) -> dict[str, float | int]:
+    """Compute horizon-level bridge metrics with an explicit baseline policy."""
+    evaluated = merged.loc[merged["horizon"] != -6].copy() if exclude_baseline else merged.copy()
+    valid = evaluated["estimate_package"].notna() & evaluated["estimate_raw"].notna()
+    differences = evaluated.loc[valid, "estimate_package"] - evaluated.loc[valid, "estimate_raw"]
+    overlaps = [
+        ci_overlap(row.conf_low_package, row.conf_high_package, row.conf_low_raw, row.conf_high_raw, baseline=bool(row.horizon == -6))
+        for row in evaluated.itertuples()
+    ]
+    return {
+        "n_points": int(valid.sum()),
+        "correlation": float(evaluated.loc[valid, "estimate_package"].corr(evaluated.loc[valid, "estimate_raw"])),
+        "rmse": float(np.sqrt(np.mean(differences**2))),
+        "max_abs_difference": float(differences.abs().max()),
+        "ci_overlap": float(np.nanmean([value for value in overlaps if value is not None])),
+    }
 
 
 def _root(config: PipelineConfig) -> Path:
@@ -117,16 +136,20 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
                 ci_rows.append({"spec": spec, "outcome": outcome, "horizon": int(row["horizon"]), "baseline": int(row["horizon"] == -6), "ci_overlap": overlap})
     ci = pd.DataFrame(ci_rows)
     write_parquet(ci, out / "bridge_ci_overlap_audit.parquet", overwrite=True)
-    metrics = read_table(bridge_root / "bridge_metrics.parquet") if (bridge_root / "bridge_metrics.parquet").exists() else pd.DataFrame()
-    sensitivity = []
-    if not metrics.empty:
-        for exclude_baseline in (False, True):
-            subset = metrics.copy()
-            if exclude_baseline:
-                subset = subset.loc[subset.get("baseline", False) != True]
-            grouped_metrics = subset.groupby("comparison", dropna=False).agg(min_correlation=("correlation", "min"), max_rmse=("rmse", "max"), max_abs_difference=("max_abs_difference", "max"), min_ci_overlap=("ci_overlap", "min")).reset_index()
-            for record in grouped_metrics.to_dict(orient="records"):
-                sensitivity.append({"exclude_baseline": exclude_baseline, **record})
+    sensitivity: list[dict[str, object]] = []
+    for spec in ("event", "dynamic"):
+        for outcome in OUTCOMES:
+            left = read_table(bridge_root / "package_common_sample_anchor" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            right = read_table(bridge_root / "raw_outcomes_package_policy" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            merged = left.merge(right, on=["flow", "spec", "outcome", "horizon"], suffixes=("_package", "_raw"), validate="one_to_one")
+            for exclude_baseline in (False, True):
+                sensitivity.append({
+                    "comparison": "package_common_vs_raw_outcomes_package_policy",
+                    "spec": spec,
+                    "outcome": outcome,
+                    "exclude_baseline": exclude_baseline,
+                    **curve_metrics(merged, exclude_baseline=exclude_baseline),
+                })
     pd.DataFrame(sensitivity).to_csv(out / "bridge_metric_sensitivity.csv", index=False)
     manifest = {"version": "v5", "created_at_utc": datetime.now(timezone.utc).isoformat(), "package_path": _relative(config, package), "raw_path": _relative(config, raw), "equivalence_path": _relative(config, out / "bridge_outcome_equivalence.parquet"), "status": "diagnostic", "v5_ready": False}
     write_metadata_json(out / "bridge_diagnosis_manifest.json", manifest)
