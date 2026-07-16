@@ -324,3 +324,18 @@ extension remain blocked.
 - Pipeline ordering is represented by an explicit dependency DAG. `--only-step` runs exactly one step and reports missing prerequisites without silently running them.
 - The package-only benchmark is written under `data/verification/passthru_data/trade_regressions/package_benchmark_v5/` and is deliberately independent of the raw Census key universe.
 - Section 301 v5 owns a 60-fit/72-artifact grid and keeps the legal release gate false until the package/common-sample bridge is materialized and passes its stated thresholds.
+
+## 2026-07-16 bridge diagnosis and extension inventory
+
+Projection-based diagnostics now record package/raw outcome equivalence, staged sample
+losses, confidence-interval overlap, and metric sensitivity under
+`.../common_sample/bridge/diagnosis/`. Package value and quantity are million-scaled
+relative to raw trade levels; prices are approximately unit-compatible. This scale
+finding is recorded diagnostically and does not change estimator definitions. Price
+and duty-price bridge gates remain failed, so Section 301 v5 estimation is paused.
+
+The local trade inventory confirms import and export archives for every month from
+2013-01 through 2025-12. The extension inventory is recorded under
+`data/verification/passthru_data/extension_v1/`; large-source hashes are explicitly
+marked deferred pending a streamed inventory pass. No independent extension panel or
+2025 event regression has been constructed.
