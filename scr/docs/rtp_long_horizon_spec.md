@@ -308,3 +308,9 @@ The package/PDF gate is 1.10 log points; the raw-outcome bridge targets correlat
 0.95, RMSE 1.25, maximum difference 2.50, and confidence-interval overlap 0.80.
 These are diagnostics only: the policy reconstruction gate remains unchanged and
 no 2025 ledger or event-study work is activated by default.
+
+### 2026-07-16 extension status
+
+The raw-only extension now covers all 312 locally available flow-months through
+2025-12 in ZSTD Parquet, with zero monthly reconciliation failures. It contains
+no package tariff fields; legal-policy and event-study gates remain false.

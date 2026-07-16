@@ -334,8 +334,9 @@ relative to raw trade levels; prices are approximately unit-compatible. This sca
 finding is recorded diagnostically and does not change estimator definitions. Price
 and duty-price bridge gates remain failed, so Section 301 v5 estimation is paused.
 
-The local trade inventory confirms import and export archives for every month from
-2013-01 through 2025-12. The extension inventory is recorded under
-`data/verification/passthru_data/extension_v1/`; large-source hashes are explicitly
-marked deferred pending a streamed inventory pass. No independent extension panel or
-2025 event regression has been constructed.
+The local trade inventory confirms 156 import and 156 export archives for every
+month from 2013-01 through 2025-12, plus one auxiliary concordance per flow. The
+raw-only extension now contains 312 ZSTD Parquet partitions with zero monthly
+reconciliation failures and no package-policy columns. Price and duty-price bridge
+metrics remain failed, so Section 301 v5 estimation and the 2025 event regression
+remain blocked.

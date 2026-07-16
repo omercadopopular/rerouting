@@ -116,3 +116,10 @@ The raw HTS machine/PDF tariff reconstruction branch is archived from the defaul
    - `python scr/pipeline_passthru_data.py --only-step build_rerouting_controls --skip-downloads --skip-verification --overwrite`
 4. Run rerouting-extended regressions:
    - `python scr/pipeline_passthru_data.py --only-step run_rerouting_regressions --skip-downloads --skip-verification --overwrite`
+
+### 2026-07-16 replication extension status
+
+The package-only import benchmark is current and passes its PDF gate. The raw
+trade extension is independently materialized through 2025-12 for both flows;
+the raw-outcome bridge and independent tariff-policy gates remain separate and
+are not cleared by the extension build.

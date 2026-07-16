@@ -631,3 +631,8 @@ points across eight import fits). The raw-outcome/package-policy bridge was
 estimated on the corrected common sample, but its correlation, distance, and
 confidence-interval thresholds do not all pass. No Section 301 legal mapping was
 changed, and `ready_for_extension` remains false.
+
+The independent raw-trade extension was subsequently built from raw-only local
+staging for all 156 import and 156 export months through 2025-12. Its monthly
+reconciliations pass, but this does not change the failed policy gate or authorize
+the 2025 event study.

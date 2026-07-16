@@ -10,5 +10,5 @@ not treated as replication evidence.
 | Figure 4b export dynamic study | `fig_04_dynamic.do` | `package_full_benchmark` | `blocked_missing_data` | Not attempted | Export Figure 4b is absent locally |
 | Common-sample outcome bridge | Section 301 v5 design | `raw_outcomes_package_policy` | `gate_failed` | Corrected common panel; several distance/CI thresholds fail | Outcome reconstruction and sample restrictions |
 | Independent Section 301 policy map | Section 301 source programs | `fully_raw_policy` | `gate_failed` | Existing corrected China metrics remain outside tolerance | Legal/timing/rate discrepancies |
-| 2013–2025 raw trade extension | Trade panel builders | extension v1 | `not_started` | Not built | Package/bridge gate failed |
+| 2013–2025 raw trade extension | Trade panel builders | extension v1 | `gate_passed` | 312/312 ZSTD Parquet partitions; imports 39,640,207 rows and exports 50,400,363 rows; zero reconciliation failures | Duty detail unavailable in raw-only staging and remains null |
 | February 2025 event study | Future design | 2025 policy ledger | `blocked_missing_data` | Not estimated | Versioned policy ledger incomplete |
