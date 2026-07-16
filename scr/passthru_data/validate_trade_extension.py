@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 
 import pandas as pd
@@ -89,11 +90,16 @@ def _validate_one(config: PipelineConfig, flow: str, period: str) -> dict[str, A
     }
 
 
-def validate_trade_extension(config: PipelineConfig, *, start_period: str = "2013-01", end_period: str = "2025-12", flows: tuple[str, ...] = ("imports", "exports"), periods: tuple[str, ...] | None = None) -> dict[str, Any]:
+def validate_trade_extension(config: PipelineConfig, *, start_period: str = "2013-01", end_period: str = "2025-12", flows: tuple[str, ...] = ("imports", "exports"), periods: tuple[str, ...] | None = None, workers: int = 1) -> dict[str, Any]:
     verification = config.verification_dir / "extension_v1" / "archive_validation"
     verification.mkdir(parents=True, exist_ok=True)
     selected_periods = tuple(periods) if periods else tuple(iter_months(start_period, end_period))
-    rows = [_validate_one(config, flow, period) for flow in flows for period in selected_periods]
+    jobs = [(flow, period) for flow in flows for period in selected_periods]
+    if workers <= 1:
+        rows = [_validate_one(config, flow, period) for flow, period in jobs]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            rows = list(executor.map(lambda job: _validate_one(config, job[0], job[1]), jobs))
     frame = pd.DataFrame(rows)
     write_parquet(frame, verification / "extension_archive_validation.parquet", overwrite=True)
     frame.groupby(["flow", "status"], dropna=False).size().reset_index(name="months").to_csv(verification / "extension_archive_validation_summary.csv", index=False)
@@ -122,9 +128,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--end", default="2025-12")
     parser.add_argument("--flow", choices=("imports", "exports", "all"), default="all")
     parser.add_argument("--period", action="append", dest="periods", help="Validate selected periods instead of the full range; may be repeated.")
+    parser.add_argument("--workers", type=int, default=1)
     args = parser.parse_args(argv)
     flows = ("imports", "exports") if args.flow == "all" else (args.flow,)
-    print(validate_trade_extension(PipelineConfig.default(), start_period=args.start, end_period=args.end, flows=flows, periods=tuple(args.periods) if args.periods else None))
+    print(validate_trade_extension(PipelineConfig.default(), start_period=args.start, end_period=args.end, flows=flows, periods=tuple(args.periods) if args.periods else None, workers=max(1, args.workers)))
     return 0
 
 

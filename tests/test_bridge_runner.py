@@ -8,6 +8,7 @@ from scr.passthru_data.bridge_runner import (
     SPECS,
     OUTCOMES,
     _checkpoint_valid,
+    _select_fit,
     _specification_hash,
     estimator_fingerprint,
     expected_fit_ids,
@@ -25,6 +26,15 @@ def test_bridge_specification_and_estimator_fingerprints_are_stable():
     assert _specification_hash("event", "val") == _specification_hash("event", "val")
     assert _specification_hash("event", "val") != _specification_hash("dynamic", "val")
     assert len(estimator_fingerprint()) == 64
+
+
+def test_select_fit_does_not_mix_p_with_pduty():
+    coefficients = pd.DataFrame({"fit_id": [
+        "package_common_sample_anchor|event|p",
+        "package_common_sample_anchor|event|pduty",
+    ], "event_time": [-6, -6], "estimate": [1.0, 2.0]})
+    selected = _select_fit(coefficients, "package_common_sample_anchor", "event", "p")
+    assert selected["fit_id"].tolist() == ["package_common_sample_anchor|event|p"]
 
 
 def test_checkpoint_validation_rejects_missing_artifacts(tmp_path: Path):

@@ -88,6 +88,12 @@ def _source_paths(config: PipelineConfig) -> dict[str, Path]:
     }
 
 
+def _select_fit(coefficients: pd.DataFrame, mode: str, spec: str, outcome: str) -> pd.DataFrame:
+    """Select one exact fit, avoiding ``p``/``pduty`` substring collisions."""
+    fit_id = f"{mode}|{spec}|{outcome}"
+    return coefficients.loc[coefficients["fit_id"] == fit_id].copy()
+
+
 def _checkpoint_valid(directory: Path, fit_id: str, source_hash: str, sample_hash: str, treatment_hash: str, spec_hash: str, code_hash: str) -> bool:
     try:
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
@@ -216,18 +222,44 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
     comparisons: list[dict[str, Any]] = []
     for spec in SPECS:
         for outcome in OUTCOMES:
-            left = coefficients.loc[(coefficients["source_mode"] == SOURCE_MODES[0]) & (coefficients["fit_id"].str.contains(f"|{spec}|{outcome}", regex=False))].copy()
-            right = coefficients.loc[(coefficients["source_mode"] == SOURCE_MODES[1]) & (coefficients["fit_id"].str.contains(f"|{spec}|{outcome}", regex=False))].copy()
-            horizon = "event_time" if "event_time" in left.columns else "horizon"
+            # Match the complete fit ID.  A substring match would select
+            # ``p`` from ``pduty`` and duplicate every horizon in the merge.
+            left = _select_fit(coefficients, SOURCE_MODES[0], spec, outcome)
+            right = _select_fit(coefficients, SOURCE_MODES[1], spec, outcome)
+            # The concatenated coefficient table contains both columns because
+            # event and dynamic fits have different schemas.  Dynamic fits
+            # retain a null event_time column; selecting it would create a
+            # Cartesian merge and invalidate all curve metrics.
+            horizon = "event_time" if spec == "event" else "horizon"
             merged = left.merge(right, on=[horizon], suffixes=("_package", "_raw"))
             differences = merged["estimate_package"] - merged["estimate_raw"]
             metric_frame = merged.rename(columns={"event_time": "horizon"})
             metric = curve_metrics(metric_frame, exclude_baseline=False) if {"conf_low_package", "conf_high_package", "conf_low_raw", "conf_high_raw"}.issubset(metric_frame.columns) else {}
-            comparisons.append({"spec": spec, "outcome": outcome, "n_points": len(merged), "correlation": float(merged["estimate_package"].corr(merged["estimate_raw"])), "rmse": float(np.sqrt(np.mean(differences**2))), "max_abs_difference": float(differences.abs().max()), **metric})
+            record = {"spec": spec, "outcome": outcome, "n_points": len(merged), "correlation": float(merged["estimate_package"].corr(merged["estimate_raw"])), "rmse": float(np.sqrt(np.mean(differences**2))), "max_abs_difference": float(differences.abs().max()), **metric}
+            failed = []
+            if record["correlation"] < 0.95:
+                failed.append("correlation")
+            if record["rmse"] > 1.25:
+                failed.append("rmse")
+            if record["max_abs_difference"] > 2.50:
+                failed.append("max_abs_difference")
+            if record.get("ci_overlap", 0.0) < 0.80:
+                failed.append("ci_overlap")
+            record["failed_metrics"] = failed
+            record["registered_numeric_gate"] = not failed
+            comparisons.append(record)
     comparison_frame = pd.DataFrame(comparisons)
     write_parquet(comparison_frame, root / "bridge_comparison.parquet", overwrite=True)
     comparison_frame.to_csv(root / "bridge_comparison.csv", index=False)
-    write_metadata_json(root / "bridge_gate.json", {"version": VERSION, "status": "diagnostic", "bridge_gate": "requires_registered_ci_and_sign_checks", "v5_ready": False})
+    write_metadata_json(root / "bridge_gate.json", {
+        "version": VERSION,
+        "status": "failed" if any(row.get("failed_metrics") for row in comparisons) else "pending_sign_check",
+        "bridge_gate": "registered_numeric_metrics_plus_post_treatment_sign",
+        "registered_numeric_gate": all(row.get("registered_numeric_gate", False) for row in comparisons),
+        "post_treatment_sign_gate": "not_computed_by_finalizer",
+        "v5_ready": False,
+        "failed_fit_metrics": [{"spec": row["spec"], "outcome": row["outcome"], "failed_metrics": row.get("failed_metrics", [])} for row in comparisons if row.get("failed_metrics")],
+    })
     payload["status"] = "complete"
     write_metadata_json(root / "progress.json", payload)
     (root / "bridge_report.md").write_text("# Resumable bridge v1\n\nThis bridge is diagnostic and does not alter Section 301 policy semantics.\n", encoding="utf-8")
