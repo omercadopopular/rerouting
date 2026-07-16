@@ -1004,7 +1004,7 @@ def _variance_summary(reference: pd.DataFrame, comparison: pd.DataFrame) -> pd.D
 def _write_report(config: PipelineConfig, summary: dict[str, Any]) -> Path:
     report_path = _artifact_dir(config) / "section301_regression_sensitivity_report.md"
     lines = [
-        "# Section 301 Regression Sensitivity v3",
+        "# Section 301 Regression Sensitivity v4",
         "",
         f"- Ready for extension: `{summary['ready_for_extension']}`",
         f"- Common sample keys: `{summary['common_sample_keys']:,}`",
@@ -1235,7 +1235,7 @@ def run_section301_regression_sensitivity(config: PipelineConfig) -> dict[str, A
     required = [record for record in preflight_records if record["role"] in {"package_dta_source", "current_panel_raw_source", "package_cache", "raw_cache"}]
     if not all(record["valid_for_run"] for record in required):
         reasons = [record["failure_reason"] for record in required if not record["valid_for_run"]]
-        raise RuntimeError(f"Section 301 v3 sensitivity run refused by preflight: {reasons}")
+        raise RuntimeError(f"Section 301 v4 sensitivity run refused by preflight: {reasons}")
     provenance_path = _write_provenance_audit(config, _diagnostic_dir(config))
     master = _build_master_panel(config, package_path, raw_path)
     if master.empty:
@@ -1339,6 +1339,11 @@ def run_section301_regression_sensitivity(config: PipelineConfig) -> dict[str, A
     comparison_path = _output_path(config, "section301_regression_sensitivity_comparison.csv")
     sample_audit = pd.DataFrame(sample_audit_rows)
     sample_audit_path = _output_path(config, "section301_sample_audit.csv")
+    # Preserve the historical CSV names, but make Parquet the canonical
+    # machine-readable output for coefficients, comparisons, and sample keys.
+    write_parquet(coeffs, coeffs_path.with_suffix(".parquet"), overwrite=True)
+    write_parquet(comparison, comparison_path.with_suffix(".parquet"), overwrite=True)
+    write_parquet(sample_audit, sample_audit_path.with_suffix(".parquet"), overwrite=True)
     coeffs.to_csv(coeffs_path, index=False)
     comparison.to_csv(comparison_path, index=False)
     sample_audit.to_csv(sample_audit_path, index=False)

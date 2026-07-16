@@ -305,3 +305,10 @@ The main remaining replication gap is therefore not the raw-download stage. It i
 - The CPI downloader is effectively resumable at the staging-output level, but still refreshes the batch JSON payloads when run.
 - `--inventory-only` is the safe first command after any long pause in work.
 - The current verification report should be read as a gate before adding tariff-policy logic, not as evidence that the paper is already replicated.
+
+## 2026-07-15 v5 replication milestone
+
+- Detailed validation, key, and timing artifacts now have canonical ZSTD Parquet paths; legacy CSVs remain fallback-only compatibility artifacts.
+- Pipeline ordering is represented by an explicit dependency DAG. `--only-step` runs exactly one step and reports missing prerequisites without silently running them.
+- The package-only benchmark is written under `data/verification/passthru_data/trade_regressions/package_benchmark_v5/` and is deliberately independent of the raw Census key universe.
+- Section 301 v5 owns a 60-fit/72-artifact grid and keeps the legal release gate false until the package/common-sample bridge is materialized and passes its stated thresholds.

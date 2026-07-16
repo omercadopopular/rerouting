@@ -299,3 +299,12 @@ decomposition problem, not another broad tariff-scope pass.
 - [ ] Section 201/232/301/IEEPA scopes, exemptions, and stacking pass reconciliation.
 - [ ] Duty-inclusive coverage is reported by event month.
 - [ ] February-2025 `-12/+12` results label unavailable right-tail horizons.
+
+### 2026-07-15 v5 status
+
+Before extending the horizon, the package-full import benchmark must be stable and
+the v5 Section 301 artifact grid must finalize without a `current_fit.json` marker.
+The package/PDF gate is 1.10 log points; the raw-outcome bridge targets correlation
+0.95, RMSE 1.25, maximum difference 2.50, and confidence-interval overlap 0.80.
+These are diagnostics only: the policy reconstruction gate remains unchanged and
+no 2025 ledger or event-study work is activated by default.

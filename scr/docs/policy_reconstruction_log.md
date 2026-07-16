@@ -613,3 +613,11 @@ Follow-up audit:
 - none of those top raw-only HS10s rely on machine-link evidence;
 - the residual divergence is therefore not a simple unsupported-scope problem and should be
   treated as a timing/map/rate decomposition issue before Section 232 begins.
+
+### 2026-07-15 — v5 artifact and sensitivity design
+
+The v5 path does not alter the Section 301 legal mapping. It separates package-full
+benchmark, common-sample anchor, raw-outcome bridge, and raw-policy variants. Fit
+execution IDs are tracked separately from materialized coefficient artifacts (the
+current design is 60 fits and 72 artifacts, including clones). The release gate
+remains false while the corrected China policy metrics remain outside tolerance.
