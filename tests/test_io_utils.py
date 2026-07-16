@@ -1,6 +1,8 @@
 from datetime import date
 from pathlib import Path
 import sys
+import pandas as pd
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCR = ROOT / "scr"
@@ -8,7 +10,7 @@ if str(SCR) not in sys.path:
     sys.path.insert(0, str(SCR))
 
 from passthru_data.config import inferred_latest_complete_period
-from passthru_data.io_utils import iter_months, normalize_hs_code
+from passthru_data.io_utils import iter_months, normalize_hs_code, write_parquet
 
 
 def test_normalize_hs_code_preserves_leading_zeroes() -> None:
@@ -36,3 +38,21 @@ def test_iter_months_is_inclusive() -> None:
 def test_inferred_latest_complete_period_uses_previous_month() -> None:
     assert inferred_latest_complete_period(date(2026, 3, 17)) == "2026-02"
     assert inferred_latest_complete_period(date(2026, 1, 3)) == "2025-12"
+
+
+def test_write_parquet_uses_zstd_and_preserves_destination_on_failure(tmp_path, monkeypatch):
+    path = tmp_path / "artifact.parquet"
+    frame = pd.DataFrame({"key": [1, 2], "value": [3.0, 4.0]})
+    write_parquet(frame, path)
+    import pyarrow.parquet as pq
+    metadata = pq.ParquetFile(path).metadata
+    assert metadata.row_group(0).column(0).compression == "ZSTD"
+    original = path.read_bytes()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("simulated serialization failure")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", fail)
+    with pytest.raises(RuntimeError):
+        write_parquet(pd.DataFrame({"key": [9]}), path)
+    assert path.read_bytes() == original

@@ -10,7 +10,9 @@ from typing import Any
 import importlib.util
 import json
 import math
+import os
 import re
+import tempfile
 
 import pandas as pd
 
@@ -124,11 +126,20 @@ def write_parquet(df: pd.DataFrame, path: Path, overwrite: bool = True) -> Path:
     # Write beside the destination and replace only after serialization
     # succeeds.  This prevents interrupted estimators from leaving a
     # truncated artifact that later appears to be a valid checkpoint.
-    temporary = path.with_name(f".{path.name}.tmp")
-    if temporary.exists():
-        temporary.unlink()
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    os.close(fd)
+    Path(temporary_name).unlink(missing_ok=True)
+    temporary = Path(temporary_name)
     try:
         df.to_parquet(temporary, index=False, compression="zstd")
+        import pyarrow.parquet as pq
+        table = pq.read_table(temporary)
+        if list(table.column_names) != list(df.columns) or table.num_rows != len(df):
+            raise ValueError("Parquet validation failed: schema or row count mismatch")
+        row_group = pq.ParquetFile(temporary).metadata.row_group(0)
+        compression = {row_group.column(i).compression for i in range(row_group.num_columns)}
+        if compression != {"ZSTD"}:
+            raise ValueError(f"Parquet validation failed: expected ZSTD, got {compression}")
         temporary.replace(path)
     finally:
         if temporary.exists():
@@ -168,12 +179,17 @@ def _json_default(value: Any) -> Any:
 
 def write_metadata_json(path: Path, payload: dict[str, Any]) -> Path:
     ensure_dir(path.parent)
-    temporary = path.with_name(f".{path.name}.tmp")
-    if temporary.exists():
-        temporary.unlink()
-    with temporary.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, sort_keys=True, default=_json_default)
-    temporary.replace(path)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent, text=True)
+    os.close(fd)
+    temporary = Path(temporary_name)
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True, default=_json_default)
+        json.loads(temporary.read_text(encoding="utf-8"))
+        temporary.replace(path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
     return path
 
 
