@@ -125,22 +125,28 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
     # times, exhausting memory before any checkpoint was written.
     event_frame = _prepare_event_study("imports", frame)
     dynamic_frame = _prepare_dynamic("imports", frame)
+    requested_specs = {config.regression_spec} if config.regression_spec in {"event", "dynamic"} else {"event", "dynamic"}
+    requested_outcomes = (config.regression_outcome,) if config.regression_outcome in OUTCOMES else OUTCOMES
     event_rows: list[pd.DataFrame] = []
     dynamic_rows: list[pd.DataFrame] = []
     fit_audit: list[dict[str, Any]] = []
-    for outcome in OUTCOMES:
+    for outcome in requested_outcomes:
         event_checkpoint = out_dir / "checkpoints" / "event" / outcome
         dynamic_checkpoint = out_dir / "checkpoints" / "dynamic" / outcome
         event_checkpoint.mkdir(parents=True, exist_ok=True)
         dynamic_checkpoint.mkdir(parents=True, exist_ok=True)
         event_path = event_checkpoint / "coefficients.parquet"
         dynamic_path = dynamic_checkpoint / "coefficients.parquet"
-        if event_path.exists() and not config.overwrite:
+        if "event" not in requested_specs:
+            event_result = pd.DataFrame()
+        elif event_path.exists() and not config.overwrite:
             event_result = read_table(event_path)
         else:
             event_result = _run_event_study_one(config, "imports", outcome, event_frame, "package_full_benchmark", _repo_relative(config, cache_path)).frame
             write_parquet(event_result, event_path, overwrite=True)
-        if dynamic_path.exists() and not config.overwrite:
+        if "dynamic" not in requested_specs:
+            dynamic_result = pd.DataFrame()
+        elif dynamic_path.exists() and not config.overwrite:
             dynamic_result = read_table(dynamic_path)
         else:
             dynamic_result = _run_dynamic_one(config, "imports", outcome, dynamic_frame, "package_full_benchmark", _repo_relative(config, cache_path)).frame
@@ -151,12 +157,14 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
             {"source_mode": "package_full_benchmark", "spec": "event", "outcome": outcome, "rows": int(event_result["nobs"].iloc[0]) if not event_result.empty else 0, "checkpoint": _repo_relative(config, event_path)},
             {"source_mode": "package_full_benchmark", "spec": "dynamic", "outcome": outcome, "rows": int(dynamic_result["nobs"].iloc[0]) if not dynamic_result.empty else 0, "checkpoint": _repo_relative(config, dynamic_path)},
         ])
-    event = pd.concat(event_rows, ignore_index=True)
-    dynamic = pd.concat(dynamic_rows, ignore_index=True)
+    event = pd.concat(event_rows, ignore_index=True) if event_rows else pd.DataFrame()
+    dynamic = pd.concat(dynamic_rows, ignore_index=True) if dynamic_rows else pd.DataFrame()
     event_path = out_dir / "package_full_event_coefficients.parquet"
     dynamic_path = out_dir / "package_full_dynamic_coefficients.parquet"
-    write_parquet(event, event_path, overwrite=True)
-    write_parquet(dynamic, dynamic_path, overwrite=True)
+    if not event.empty:
+        write_parquet(event, event_path, overwrite=True)
+    if not dynamic.empty:
+        write_parquet(dynamic, dynamic_path, overwrite=True)
     keys = frame[[c for c in ("id", "cty_code", "hs10", "year", "month") if c in frame.columns]].drop_duplicates()
     sample_hash = hashlib.sha256(pd.util.hash_pandas_object(keys, index=False).values.tobytes()).hexdigest()
     sample_audit = pd.DataFrame(fit_audit)
