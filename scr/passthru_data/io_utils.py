@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 import importlib.util
 import json
+import math
 import re
 
 import pandas as pd
@@ -41,17 +42,28 @@ def iter_months(start_period: str, end_period: str) -> list[str]:
 
 
 def normalize_hs_code(value: Any, digits: int) -> str | None:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    if value is None or (isinstance(value, (float, int)) and not isinstance(value, bool) and pd.isna(value)):
         return None
     text = str(value).strip()
     if not text:
         return None
-    if text.endswith(".0"):
-        text = text[:-2]
-    text = re.sub(r"\D", "", text)
-    if not text:
+    # Stata numeric imports commonly arrive as strings such as
+    # ``801001090.0``.  Remove only a terminal zero-only decimal suffix;
+    # blindly deleting punctuation turns that value into ``8010010900`` and
+    # destroys the leading-zero HS code.  Scientific notation is rejected as
+    # ambiguous unless a caller explicitly converts it to an exact integer.
+    if re.search(r"[eE]", text):
         return None
-    return text.zfill(digits)[-digits:]
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    decimal_match = re.fullmatch(r"(\d+)\.0+", text)
+    if decimal_match:
+        text = decimal_match.group(1)
+    else:
+        text = re.sub(r"\D", "", text)
+    if not text or len(text) > digits:
+        return None
+    return text.zfill(digits)
 
 
 def normalize_country_code(value: Any) -> str | None:

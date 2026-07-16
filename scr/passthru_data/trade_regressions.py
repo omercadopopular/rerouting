@@ -94,21 +94,25 @@ def _prepare_event_study(flow: str, frame: pd.DataFrame) -> pd.DataFrame:
     out = _prepare_base_frame(frame, flow)
     out = out.loc[out["year"] >= 2017].copy()
     d_col = f"{prefix}_effective_mdate2"
-    ess_col = f"{prefix}_ess"
+    status_col = f"{prefix}_status2"
+    # The Stata program defines treatment as the time-invariant maximum of
+    # m_status2 by id.  The package's m_ess helper is not equivalent for a
+    # small set of products, so it must not be used as the treatment source.
+    out["ess_status"] = out.groupby("id", sort=False)[status_col].transform("max")
     out["d_index"] = out[d_col].map(stata_month_period_to_index).astype("Int64")
-    out[ess_col] = pd.to_numeric(out[ess_col], errors="coerce")
+    out["ess_status"] = pd.to_numeric(out["ess_status"], errors="coerce")
     for sector_col in ("naics4", "naics3", "naics2"):
         fill_value = out.groupby(sector_col, dropna=False)["d_index"].transform("min")
-        out.loc[out["d_index"].isna() & (out[ess_col] == 0), "d_index"] = fill_value
+        out.loc[out["d_index"].isna() & (out["ess_status"] == 0), "d_index"] = fill_value
     default_period = pd.Period(spec["default_event_period"], freq="M")
     default_index = int(default_period.year) * 12 + int(default_period.month) - 1
-    out.loc[out["d_index"].isna() & (out[ess_col] == 0), "d_index"] = default_index
+    out.loc[out["d_index"].isna() & (out["ess_status"] == 0), "d_index"] = default_index
     out["event_time"] = out["mdate_index"] - out["d_index"]
     out = out.loc[out["event_time"].notna()].copy()
     out["event_time"] = out["event_time"].astype(int)
     out.loc[out["event_time"] >= 6, "event_time"] = 6
     out = out.loc[out["event_time"] >= -6].copy()
-    out["T"] = (out[ess_col] == 2).astype(int)
+    out["T"] = (out["ess_status"] == 2).astype(int)
     for event_value in range(-5, 7):
         et_name = _event_series_name(prefix, event_value, "et")
         yt_name = _event_series_name(prefix, event_value, "yt")
