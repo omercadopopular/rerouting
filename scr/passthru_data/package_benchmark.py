@@ -88,6 +88,14 @@ def specification_fingerprint(config: PipelineConfig) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _treatment_hash(frame: pd.DataFrame | None) -> str | None:
+    if frame is None:
+        return None
+    columns = [column for column in ("id", "cty_code", "hs10", "year", "month", "m_status2", "m_effective_mdate2", "m_stattariff2") if column in frame.columns]
+    values = frame[columns].sort_values(columns[:5]).reset_index(drop=True)
+    return hashlib.sha256(pd.util.hash_pandas_object(values, index=False).values.tobytes()).hexdigest()
+
+
 def orchestration_code_fingerprint() -> str:
     return _normalized_file_fingerprint(Path(__file__))
 
@@ -392,6 +400,8 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
     specification_hash = specification_fingerprint(config)
     event_sample_hash = hashlib.sha256(pd.util.hash_pandas_object(event_frame[["id", "cty_code", "hs10", "year", "month"]], index=False).values.tobytes()).hexdigest() if event_frame is not None else None
     dynamic_sample_hash = hashlib.sha256(pd.util.hash_pandas_object(dynamic_frame[["id", "cty_code", "hs10", "year", "month"]], index=False).values.tobytes()).hexdigest() if dynamic_frame is not None else None
+    event_treatment_hash = _treatment_hash(event_frame)
+    dynamic_treatment_hash = _treatment_hash(dynamic_frame)
     event_rows: list[pd.DataFrame] = []
     dynamic_rows: list[pd.DataFrame] = []
     fit_audit: list[dict[str, Any]] = []
@@ -475,6 +485,9 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
             if coefficient[horizon_column].nunique() != 13:
                 continue
             checkpoint_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if checkpoint_manifest.get("treatment_hash") is None:
+                checkpoint_manifest["treatment_hash"] = event_treatment_hash if spec == "event" else dynamic_treatment_hash
+                write_metadata_json(manifest_path, checkpoint_manifest)
             valid_global.append((spec, outcome, coefficient, checkpoint_manifest))
     global_complete = len(valid_global) == len(EXPECTED_FIT_IDS)
     if global_complete:
@@ -495,6 +508,25 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
     if global_complete:
         write_parquet(sample_audit, out_dir / "package_full_sample_audit.parquet", overwrite=True)
     valid_fit_ids = sorted(f"imports|{spec}|{outcome}" for spec, outcome, _, _ in valid_global)
+    fit_records = []
+    for spec, outcome, coefficient, checkpoint_manifest in valid_global:
+        horizon_column = "event_time" if "event_time" in coefficient.columns else "horizon"
+        fit_records.append({
+            "fit_id": checkpoint_manifest.get("fit_id"),
+            "specification": spec,
+            "outcome": outcome,
+            "source_path": checkpoint_manifest.get("source_path"),
+            "source_fingerprint": checkpoint_manifest.get("source_fingerprint"),
+            "estimator_fingerprint": checkpoint_manifest.get("estimator_fingerprint"),
+            "specification_fingerprint": checkpoint_manifest.get("specification_fingerprint"),
+            "sample_hash": checkpoint_manifest.get("sample_hash"),
+            "treatment_hash": checkpoint_manifest.get("treatment_hash"),
+            "observation_count": checkpoint_manifest.get("observation_count"),
+            "coefficient_path": _repo_relative(config, out_dir / "checkpoints" / spec / outcome / "coefficients.parquet"),
+            "sample_audit_path": _repo_relative(config, out_dir / "checkpoints" / spec / outcome / "sample_audit.parquet"),
+            "manifest_path": _repo_relative(config, out_dir / "checkpoints" / spec / outcome / "manifest.json"),
+            "horizon_count": int(coefficient[horizon_column].nunique()),
+        })
     manifest = {
         "version": "v5",
         "source_mode": "package_full_benchmark",
@@ -519,6 +551,7 @@ def run_package_benchmark(config: PipelineConfig) -> dict[str, Any]:
         "completed_fit_count": len(valid_global),
         "expected_fit_count": len(EXPECTED_FIT_IDS),
         "completed_fit_ids": valid_fit_ids,
+        "fits": fit_records,
     }
     if not global_complete:
         write_metadata_json(out_dir / "package_full_partial_manifest.json", manifest)
