@@ -126,6 +126,8 @@ def _parse_archive(config: PipelineConfig, flow: str, period: str, archive: Path
         "quantity_missing_rows": int(raw["quantity"].isna().sum()),
         "quantity_zero_rows": int(raw["quantity"].eq(0).sum()),
     }
+    audit["duty_rows"] = int(sum(pd.to_numeric(raw[column], errors="coerce").notna().sum() for column in ("dut_val_mo", "cal_dut_mo") if column in raw.columns))
+    audit["duty_total"] = float(sum(pd.to_numeric(raw[column], errors="coerce").sum(min_count=1) or 0.0 for column in ("dut_val_mo", "cal_dut_mo") if column in raw.columns))
     audit["trade_value_difference"] = audit["output_trade_value"] - audit["source_trade_value"]
     audit["trade_value_tolerance"] = max(1.0, 1e-8 * abs(audit["source_trade_value"]))
     audit["reconciliation_pass"] = abs(audit["trade_value_difference"]) <= audit["trade_value_tolerance"]
@@ -213,7 +215,15 @@ def build_trade_extension_from_raw_staging(config: PipelineConfig, *, start_peri
                 source = source_by_period[period]
                 partition = out_root / f"flow={flow}" / f"year={period[:4]}" / f"month={period[5:7]}" / "part.parquet"
                 if partition.exists() and not overwrite:
-                    continue
+                    prior_audit = verification_root / "extension_monthly_reconciliation.parquet"
+                    if prior_audit.exists():
+                        prior = pd.read_parquet(prior_audit)
+                        match = prior.loc[(prior["flow"] == flow) & (prior["period"] == period)]
+                        if not match.empty:
+                            audits.append(match.iloc[0].to_dict())
+                            continue
+                    # A partition without a matching audit is not resumable
+                    # evidence; rebuild its audit (and partition below).
                 partition.parent.mkdir(parents=True, exist_ok=True)
                 escaped_staging = str(staging).replace("'", "''")
                 escaped_archive = source["source_archive"].replace("'", "''")
@@ -271,9 +281,10 @@ def build_trade_extension_from_raw_staging(config: PipelineConfig, *, start_peri
     write_parquet(audit_frame[["flow", "period", "partition", "quantity_missing_rows", "quantity_zero_rows"]], verification_root / "extension_quantity_audit.parquet", overwrite=True)
     concordance = audit_frame[["flow", "period", "partition"]].copy()
     concordance["concordance_status"] = "not_applied_raw_hs10"
-    concordance["one_to_many_count"] = 0
-    concordance["many_to_one_count"] = 0
-    concordance["unmatched_count"] = 0
+    concordance["one_to_many_count"] = pd.NA
+    concordance["many_to_one_count"] = pd.NA
+    concordance["unmatched_count"] = pd.NA
+    concordance["audit_status"] = "pending_archive_concordance_audit"
     write_parquet(concordance, verification_root / "extension_concordance_audit.parquet", overwrite=True)
     inventory = {"version": VERSION, "created_at_utc": datetime.now(timezone.utc).isoformat(), "requested_start_period": normalize_period(start_period), "requested_end_period": normalize_period(end_period), "flows": {}}
     for flow in flows:
@@ -288,7 +299,7 @@ def build_trade_extension_from_raw_staging(config: PipelineConfig, *, start_peri
         inventory["flows"][flow] = {"archive_count": len(archives), "auxiliary_concordance_count": 1 if auxiliary.exists() else max(0, len(files) - len(archives)), "auxiliary_concordance": _repo_relative(config, auxiliary) if auxiliary.exists() else None, "periods": sorted(str(item.get("period")) for item in archives), "source_files": [{"period": item.get("period"), "path": _repo_relative(config, Path(item.get("path", ""))), "sha256": item.get("sha256")} for item in archives], "staging_rows": metadata.get("rows"), "build_mode": metadata.get("build_mode", "raw_only")}
     write_metadata_json(verification_root / "extension_input_inventory.json", inventory)
     write_metadata_json(verification_root / "extension_missing_sources.json", {"version": VERSION, "missing": missing, "status": "complete" if not missing else "blocked_missing_data"})
-    manifest = {"version": VERSION, "created_at_utc": datetime.now(timezone.utc).isoformat(), "flows": list(flows), "requested_start_period": normalize_period(start_period), "requested_end_period": normalize_period(end_period), "partitions": int(len(audits)), "missing_partitions": int(len(missing)), "reconciliation_failures": int((~audit_frame["reconciliation_pass"].astype(bool)).sum()) if not audit_frame.empty else None, "build_mode": "raw_only_staging_projection", "policy_columns_present": False, "duty_fields_available": False, "input_inventory": _repo_relative(config, verification_root / "extension_input_inventory.json"), "partition_manifest": _repo_relative(config, verification_root / "extension_partition_manifest.parquet"), "status": "complete" if not missing and not audit_frame.empty and bool(audit_frame["reconciliation_pass"].all()) else "diagnostic_or_incomplete"}
+    manifest = {"version": VERSION, "created_at_utc": datetime.now(timezone.utc).isoformat(), "flows": list(flows), "requested_start_period": normalize_period(start_period), "requested_end_period": normalize_period(end_period), "partitions": int(len(audits)), "missing_partitions": int(len(missing)), "reconciliation_failures": int((~audit_frame["reconciliation_pass"].astype(bool)).sum()) if not audit_frame.empty else None, "build_mode": "raw_only_staging_projection", "policy_columns_present": False, "duty_fields_available": False, "input_inventory": _repo_relative(config, verification_root / "extension_input_inventory.json"), "partition_manifest": _repo_relative(config, verification_root / "extension_partition_manifest.parquet"), "raw_trade_staging_projection_gate": "passed" if not missing and not audit_frame.empty and bool(audit_frame["reconciliation_pass"].all()) else "failed", "raw_trade_archive_validation_gate": "pending", "raw_trade_concordance_gate": "pending", "status": "staging_projection_complete" if not missing and not audit_frame.empty and bool(audit_frame["reconciliation_pass"].all()) else "diagnostic_or_incomplete"}
     write_metadata_json(verification_root / "extension_build_manifest.json", manifest)
     return manifest
 
