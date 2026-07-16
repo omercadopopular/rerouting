@@ -113,7 +113,7 @@ def finalize_package_pdf_comparison(config: PipelineConfig) -> dict[str, Any]:
     required = {(spec, outcome) for spec in ("event", "dynamic") for outcome in OUTCOMES}
     observed = set(zip(summary["spec"], summary["outcome"]))
     gate_passed = observed == required and not summary["missing_estimates"].any() and (summary["n_points"] == 13).all() and (summary["max_abs_difference"] <= 1.10).all()
-    payload = {"status": "passed" if gate_passed else "failed", "max_abs_difference": float(merged["abs_difference"].max()), "required_threshold": 1.10, "comparisons": summary.to_dict(orient="records"), "reference_path": str(reference_path), "comparison_path": _repo_relative(config, comparison_path), "missing_export_fig_04b": True}
+    payload = {"status": "passed" if gate_passed else "failed", "max_abs_difference": float(merged["abs_difference"].max()), "required_threshold": 1.10, "comparisons": summary.to_dict(orient="records"), "reference_path": _repo_relative(config, reference_path), "comparison_path": _repo_relative(config, comparison_path), "missing_export_fig_04b": True}
     write_metadata_json(out_dir / "package_pdf_comparison_manifest.json", payload)
     manifest_path = out_dir / "package_full_manifest.json"
     if manifest_path.exists():
