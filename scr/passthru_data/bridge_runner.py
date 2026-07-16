@@ -154,6 +154,9 @@ def run_bridge(config: PipelineConfig, *, source_modes: tuple[str, ...] = SOURCE
                 state["stale_fit_ids"].append(fit_id)
         state["remaining_fit_ids"] = sorted(selected - set(state["completed_fit_ids"]))
         state["all_remaining_fit_ids"] = sorted(all_expected - set(state["completed_fit_ids"]))
+        state["expected_fit_count"] = len(all_expected)
+        state["completed_fit_count"] = len(set(state["completed_fit_ids"]))
+        state["status"] = "complete" if not state["all_remaining_fit_ids"] else "partial"
         write_metadata_json(root / "progress.json", state)
         return state
     if not finalize_only:
