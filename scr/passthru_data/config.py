@@ -25,6 +25,8 @@ STEP_NAMES = (
     "audit_trade_regression_sources",
     "build_trade_workhorse_panels",
     "run_trade_regressions",
+    "run_package_full_benchmark",
+    "run_package_common_sample_benchmark",
     "plot_trade_regressions",
     "run_section301_regression_sensitivity",
     "verify_data",
@@ -62,6 +64,8 @@ PIPELINE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "audit_trade_regression_sources": ("build_trade_panels",),
     "build_trade_workhorse_panels": ("build_trade_panels",),
     "run_trade_regressions": ("build_trade_workhorse_panels", "audit_trade_regression_sources"),
+    "run_package_full_benchmark": (),
+    "run_package_common_sample_benchmark": ("run_package_full_benchmark",),
     "plot_trade_regressions": ("run_trade_regressions",),
     "verify_data": ("build_trade_panels",),
     "build_hts_monthly_schedule": ("download_policy_sources", "download_policy_updates"),
@@ -147,6 +151,8 @@ OPT_IN_STEPS = {
     "validate_raw_replication_imports_china_semantics_corrected",
     "build_china_301_trace",
     "run_section301_regression_sensitivity",
+    "run_package_full_benchmark",
+    "run_package_common_sample_benchmark",
 }
 
 

@@ -54,6 +54,20 @@ def run_trade_regressions(config: PipelineConfig):
     return runner(config)
 
 
+def run_package_full_benchmark(config: PipelineConfig):
+    """Run the package-only import benchmark without raw-key joins."""
+    from passthru_data.package_benchmark import run_package_benchmark as runner
+
+    return runner(config)
+
+
+def run_package_common_sample_benchmark(config: PipelineConfig):
+    """Run the package/raw common-sample anchor."""
+    from passthru_data.package_benchmark import run_package_common_sample_benchmark as runner
+
+    return runner(config)
+
+
 def plot_trade_regressions(config: PipelineConfig):
     """Load optional plotting and estimation dependencies only when selected."""
     from passthru_data.trade_regressions import plot_trade_regressions as runner
@@ -101,6 +115,8 @@ STEP_RUNNERS = {
     "audit_trade_regression_sources": run_trade_regression_source_audit,
     "build_trade_workhorse_panels": run_trade_workhorse_panel_build,
     "run_trade_regressions": run_trade_regressions,
+    "run_package_full_benchmark": run_package_full_benchmark,
+    "run_package_common_sample_benchmark": run_package_common_sample_benchmark,
     "run_section301_regression_sensitivity": run_section301_regression_sensitivity_step,
     "plot_trade_regressions": plot_trade_regressions,
     "verify_data": run_verification,

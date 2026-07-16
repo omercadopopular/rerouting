@@ -1411,7 +1411,6 @@ def build_china_301_universe_trace_from_artifacts(config: PipelineConfig) -> dic
     # Canonical row-level artifact; retain the legacy CSV for backward-
     # compatible diagnostics and existing downstream readers.
     write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
-    write_parquet(trace, trace_path.with_suffix(".parquet"), overwrite=True)
     trace.to_csv(trace_path, index=False)
 
     by_country = (

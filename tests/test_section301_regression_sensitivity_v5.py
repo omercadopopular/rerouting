@@ -14,6 +14,7 @@ from passthru_data.section301_regression_sensitivity_v5 import (
     grid_counts,
     write_current_fit,
     write_failure_manifest,
+    run_section301_regression_sensitivity,
 )
 
 
@@ -61,3 +62,9 @@ def test_current_fit_marker_lifecycle(tmp_path: Path):
     assert not marker.exists()
     failure = write_failure_manifest(cfg, fit_id="fit-2", exc=ValueError("bad fit"))
     assert '"exception_type": "ValueError"' in failure.read_text(encoding="utf-8")
+
+
+def test_runner_reports_blocked_preflight_without_fabricating_outputs(tmp_path: Path):
+    result = run_section301_regression_sensitivity(_config(tmp_path))
+    assert result["status"] == "blocked"
+    assert result["ready_for_extension"] is False

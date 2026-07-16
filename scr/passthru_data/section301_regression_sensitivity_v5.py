@@ -118,13 +118,18 @@ def finalize_v5(config: PipelineConfig, records: Iterable[dict[str, Any]]) -> di
 
 
 def run_section301_regression_sensitivity(config: PipelineConfig) -> dict[str, Any]:
-    """Run the historical estimator only after v5 prerequisites are present.
-
-    The complete v5 estimator integration is intentionally explicit: callers
-    must provide the package benchmark and raw panel, otherwise the run stops
-    before creating misleading partial release artifacts.
-    """
+    """Run or report a blocked v5 preflight without fabricating estimates."""
+    out = artifact_dir(config)
     package_manifest = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "package_full_manifest.json"
     if not package_manifest.exists():
-        raise FileNotFoundError("v5 requires package_full_benchmark first; missing package_full_manifest.json")
-    raise RuntimeError("v5 estimator execution is not enabled until the package-full/common-sample bridge is materialized; no legal mapping was changed")
+        payload = {"version": VERSION, "status": "blocked", "reason": "missing package_full_manifest.json", "ready_for_extension": False}
+        write_metadata_json(out / "v5_preflight.json", payload)
+        return payload
+    common_manifest = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample" / "package_common_sample_manifest.json"
+    if not common_manifest.exists():
+        payload = {"version": VERSION, "status": "blocked", "reason": "missing package_common_sample_manifest.json", "ready_for_extension": False}
+        write_metadata_json(out / "v5_preflight.json", payload)
+        return payload
+    payload = {"version": VERSION, "status": "blocked", "reason": "v5 estimator grid requires implementation of fit execution after package and common-sample gates", "ready_for_extension": False}
+    write_metadata_json(out / "v5_preflight.json", payload)
+    return payload
