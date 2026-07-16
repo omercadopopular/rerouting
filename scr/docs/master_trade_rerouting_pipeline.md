@@ -123,3 +123,8 @@ The package-only import benchmark is current and passes its PDF gate. The raw
 trade extension is independently materialized through 2025-12 for both flows;
 the raw-outcome bridge and independent tariff-policy gates remain separate and
 are not cleared by the extension build.
+
+The current raw-trade extension is a staging projection with a stratified
+archive-level smoke audit. Full ZIP validation, concordance-vintage validation,
+and duty-inclusive extension coverage remain separate prerequisites for a recent
+tariff/event analysis.

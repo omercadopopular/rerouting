@@ -340,3 +340,9 @@ raw-only extension now contains 312 ZSTD Parquet partitions with zero monthly
 reconciliation failures and no package-policy columns. Price and duty-price bridge
 metrics remain failed, so Section 301 v5 estimation and the 2025 event regression
 remain blocked.
+
+The archive-native validator passes a stratified set of 10 flow-months,
+including 2013-01, 2018-07, 2019-04, 2020-01, and 2025-12. A complete 312-archive
+scan remains pending because the local fixed-width parser is materially slower
+than the staging projection. Archive-native extension v2 has been smoke-tested
+for 2025-12 and preserves import duty fields; it is not yet a full release.

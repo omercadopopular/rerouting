@@ -314,3 +314,7 @@ no 2025 ledger or event-study work is activated by default.
 The raw-only extension now covers all 312 locally available flow-months through
 2025-12 in ZSTD Parquet, with zero monthly reconciliation failures. It contains
 no package tariff fields; legal-policy and event-study gates remain false.
+
+Archive-native extension v2 is currently limited to a December 2025 smoke build;
+the staging-projection extension remains the broader 312-partition artifact until
+the complete ZIP audit and concordance-vintage checks pass.

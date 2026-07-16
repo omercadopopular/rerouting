@@ -636,3 +636,9 @@ The independent raw-trade extension was subsequently built from raw-only local
 staging for all 156 import and 156 export months through 2025-12. Its monthly
 reconciliations pass, but this does not change the failed policy gate or authorize
 the 2025 event study.
+
+The bridge runner now has scientific estimator fingerprints, repository-relative
+checkpoint paths, fit-specific failure manifests, and exact 16-fit preflight
+accounting. The preflight found zero fresh bridge checkpoints under the new
+fingerprint, so empirical bridge fits remain pending rather than being silently
+resumed from older diagnostics.
