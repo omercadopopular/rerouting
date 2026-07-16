@@ -642,3 +642,11 @@ checkpoint paths, fit-specific failure manifests, and exact 16-fit preflight
 accounting. The preflight found zero fresh bridge checkpoints under the new
 fingerprint, so empirical bridge fits remain pending rather than being silently
 resumed from older diagnostics.
+
+### 2026-07-16 bridge rerun
+
+All 16 bridge fits were rerun and validated under the current estimator
+fingerprint. The corrected finalizer reports the registered metrics without
+mixing the `p` and `pduty` fit IDs. Five outcome/specification comparisons remain
+outside the registered bridge thresholds; no policy semantics were changed and
+v5 empirical estimation remains blocked.

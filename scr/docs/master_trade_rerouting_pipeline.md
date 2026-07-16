@@ -128,3 +128,8 @@ The current raw-trade extension is a staging projection with a stratified
 archive-level smoke audit. Full ZIP validation, concordance-vintage validation,
 and duty-inclusive extension coverage remain separate prerequisites for a recent
 tariff/event analysis.
+
+The package/common raw-outcome bridge has completed all 16 resumable fits but
+fails its registered CI, correlation, or maximum-distance checks for five
+specification/outcome pairs. This keeps Section 301 v5 and the 2025 event study
+blocked even while archive-level extension validation proceeds independently.

@@ -15,7 +15,7 @@
     "figure_4b_export_dynamic": "blocked_missing_data",
     "common_sample_bridge": "gate_failed",
     "independent_section301_policy": "gate_failed",
-    "raw_trade_extension_2025": "gate_passed",
+    "raw_trade_extension_2025": "ran_no_gate",
     "event_2025": "blocked_missing_data"
   }
 }

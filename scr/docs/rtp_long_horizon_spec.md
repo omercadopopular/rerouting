@@ -318,3 +318,9 @@ no package tariff fields; legal-policy and event-study gates remain false.
 Archive-native extension v2 is currently limited to a December 2025 smoke build;
 the staging-projection extension remains the broader 312-partition artifact until
 the complete ZIP audit and concordance-vintage checks pass.
+
+The 16-fit raw-outcome bridge has now completed with reproducible checkpoints,
+but its registered outcome gate remains failed. The archive-native validator is
+still running across the full local ZIP set; the 312-partition staging projection
+must not be described as archive-validated until that scan and the concordance
+audit are complete.

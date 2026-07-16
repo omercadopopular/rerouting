@@ -346,3 +346,12 @@ including 2013-01, 2018-07, 2019-04, 2020-01, and 2025-12. A complete 312-archiv
 scan remains pending because the local fixed-width parser is materially slower
 than the staging projection. Archive-native extension v2 has been smoke-tested
 for 2025-12 and preserves import duty fields; it is not yet a full release.
+
+### 2026-07-16 bridge completion
+
+The corrected resumable bridge completed all 16 package-common/raw-outcome
+checkpoints under the current estimator fingerprint. Finalization now selects
+exact fit IDs and uses the correct event/dynamic horizon columns. The registered
+bridge gate remains failed: event/val and event/p fail CI overlap, event/pduty
+fails the maximum-distance threshold, dynamic/p fails correlation and CI
+overlap, and dynamic/pduty fails CI overlap. Section 301 v5 remains blocked.
