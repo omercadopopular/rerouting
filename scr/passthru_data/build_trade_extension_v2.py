@@ -47,6 +47,8 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
             frame, audit = _parse_archive(config, flow, period, archive)
             frame["parser_version"] = VERSION
             write_parquet(frame, partition, overwrite=True)
+            source_missing = int(audit.get("quantity_missing_rows", 0))
+            source_zero = int(audit.get("quantity_zero_rows", 0))
             audit.update({
                 "version": VERSION,
                 "partition": _repo_relative(config, partition),
@@ -56,9 +58,11 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
                 "dut_val_mo_total": float(frame["dut_val_mo"].sum(min_count=1) or 0.0) if "dut_val_mo" in frame else None,
                 "cal_dut_mo_rows": int(frame["cal_dut_mo"].notna().sum()) if "cal_dut_mo" in frame else 0,
                 "cal_dut_mo_total": float(frame["cal_dut_mo"].sum(min_count=1) or 0.0) if "cal_dut_mo" in frame else None,
-                "quantity_missing_rows": int(frame["quantity_missing"].sum()),
-                "quantity_zero_rows": int(frame["quantity_zero"].sum()),
-                "quantity_positive_rows": int((frame["quantity"] > 0).sum()),
+                "source_quantity_missing_rows": source_missing,
+                "source_quantity_zero_rows": source_zero,
+                "output_quantity_missing_rows": int(frame["quantity"].isna().sum()),
+                "output_quantity_zero_rows": int(frame["quantity"].eq(0).sum()),
+                "output_quantity_positive_rows": int((frame["quantity"] > 0).sum()),
                 "status": "passed" if bool(audit.get("reconciliation_pass")) else "failed",
             })
             write_metadata_json(audit_path, audit)
@@ -79,7 +83,7 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
         partition_columns = ["flow", "period", "partition", "partition_sha256", "output_rows", "archive", "source_sha256"]
         write_parquet(frame[[column for column in partition_columns if column in frame.columns]].rename(columns={"archive": "source_archive"}), verification / "extension_partition_manifest.parquet", overwrite=True)
         write_parquet(frame[["flow", "period", "partition", "duplicate_keys_before_aggregation", "duplicate_keys_after_aggregation"]], verification / "extension_duplicate_audit.parquet", overwrite=True)
-        quantity_columns = ["flow", "period", "partition", "quantity_missing_rows", "quantity_zero_rows", "quantity_positive_rows"]
+        quantity_columns = ["flow", "period", "partition", "source_quantity_missing_rows", "source_quantity_zero_rows", "output_quantity_missing_rows", "output_quantity_zero_rows", "output_quantity_positive_rows"]
         write_parquet(frame[[column for column in quantity_columns if column in frame.columns]], verification / "extension_quantity_audit.parquet", overwrite=True)
         duty_cols = [column for column in ("flow", "period", "partition", "dut_val_mo_rows", "dut_val_mo_total", "cal_dut_mo_rows", "cal_dut_mo_total") if column in frame]
         write_parquet(frame[duty_cols], verification / "extension_duty_audit.parquet", overwrite=True)

@@ -50,12 +50,14 @@ def validate_extension_v2(config: PipelineConfig, *, start_period: str = "2013-0
                            (SELECT count(DISTINCT (partner_code,hs10,year,month)) FROM s),
                            (SELECT coalesce(sum(trade_value),0) FROM v), (SELECT coalesce(sum(trade_value),0) FROM s),
                            (SELECT count(*) FROM (SELECT partner_code,hs10,year,month FROM v EXCEPT SELECT partner_code,hs10,year,month FROM s)),
-                           (SELECT count(*) FROM (SELECT partner_code,hs10,year,month FROM s EXCEPT SELECT partner_code,hs10,year,month FROM v))
+                           (SELECT count(*) FROM (SELECT partner_code,hs10,year,month FROM s EXCEPT SELECT partner_code,hs10,year,month FROM v)),
+                           (SELECT count(*) FROM v JOIN s USING(partner_code,hs10,year,month) WHERE v.quantity IS DISTINCT FROM s.quantity),
+                           (SELECT coalesce(sum(abs(v.quantity-s.quantity)),0) FROM v JOIN s USING(partner_code,hs10,year,month))
                     """
                 ).fetchone()
-                output_rows, staging_rows, output_keys, staging_keys, output_total, staging_total, only_v2, only_staging = result
+                output_rows, staging_rows, output_keys, staging_keys, output_total, staging_total, only_v2, only_staging, quantity_differences, quantity_abs_difference = result
                 tolerance = max(1.0, 1e-8 * abs(float(staging_total)))
-                rows.append({"flow": flow, "period": period, "output_rows": int(output_rows), "staging_rows": int(staging_rows), "output_keys": int(output_keys), "staging_keys": int(staging_keys), "output_trade_value": float(output_total), "staging_trade_value": float(staging_total), "trade_value_difference": float(output_total-staging_total), "trade_value_tolerance": tolerance, "only_v2_keys": int(only_v2), "only_staging_keys": int(only_staging), "status": "passed" if abs(float(output_total-staging_total)) <= tolerance and int(only_v2) == 0 and int(only_staging) == 0 else "failed"})
+                rows.append({"flow": flow, "period": period, "output_rows": int(output_rows), "staging_rows": int(staging_rows), "output_keys": int(output_keys), "staging_keys": int(staging_keys), "output_trade_value": float(output_total), "staging_trade_value": float(staging_total), "trade_value_difference": float(output_total-staging_total), "trade_value_tolerance": tolerance, "only_v2_keys": int(only_v2), "only_staging_keys": int(only_staging), "quantity_difference_rows": int(quantity_differences), "quantity_abs_difference": float(quantity_abs_difference), "status": "passed" if abs(float(output_total-staging_total)) <= tolerance and int(only_v2) == 0 and int(only_staging) == 0 and int(quantity_differences) == 0 else "failed"})
     finally:
         con.close()
     frame = pd.DataFrame(rows)
