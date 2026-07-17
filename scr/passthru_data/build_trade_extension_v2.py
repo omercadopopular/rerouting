@@ -88,6 +88,18 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
         duty_cols = [column for column in ("flow", "period", "partition", "dut_val_mo_rows", "dut_val_mo_total", "cal_dut_mo_rows", "cal_dut_mo_total") if column in frame]
         write_parquet(frame[duty_cols], verification / "extension_duty_audit.parquet", overwrite=True)
     status = "complete" if not missing and len(audits) == len(periods) * len(flows) and bool(frame.get("reconciliation_pass", pd.Series(dtype=bool)).all()) else "blocked_or_failed"
+    # Reconcile the resumable marker with the consolidated audit set.  A
+    # worker can be interrupted after writing a partition, and a later
+    # no-overwrite consolidation must not leave a stale partial marker behind.
+    write_metadata_json(verification / "extension_progress.json", {
+        "version": VERSION,
+        "completed_partitions": len(audits),
+        "expected_partitions": len(periods) * len(flows),
+        "completed_ids": sorted({f"{row.get('flow')}|{row.get('period')}" for row in audits}),
+        "missing_ids": sorted({f"{flow}|{period}" for flow in flows for period in periods
+                                if not any(row.get("flow") == flow and row.get("period") == period for row in audits)}),
+        "status": "complete" if status == "complete" else "partial",
+    })
     write_metadata_json(verification / "extension_missing_sources.json", {"version": VERSION, "missing": missing, "status": "complete" if not missing else "blocked_missing_data"})
     manifest = {
         "version": VERSION,
