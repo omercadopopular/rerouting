@@ -33,22 +33,34 @@ def canonical_path(path: Path, category: str) -> Path:
     return path
 
 
-def write_detailed(df: pd.DataFrame, path: Path, category: str = "detailed_diagnostic") -> Path:
+def write_detailed(
+    df: pd.DataFrame,
+    path: Path,
+    category: str = "detailed_diagnostic",
+    *,
+    key_columns: Iterable[str] | None = None,
+    source_fingerprints: dict[str, str] | None = None,
+    code_fingerprint: str | None = None,
+    specification_fingerprint: str | None = None,
+) -> Path:
     if category not in DETAILED_CATEGORIES:
         raise ValueError(f"write_detailed requires a detailed category, got {category!r}")
     output = canonical_path(path, category)
     write_parquet(df, output, overwrite=True)
     schema = [(str(column), str(dtype)) for column, dtype in df.dtypes.items()]
     schema_fingerprint = hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
-    key_columns = [column for column in ("id", "cty_code", "hs10", "year", "month", "mdate") if column in df.columns]
+    keys = list(key_columns) if key_columns is not None else [column for column in ("id", "cty_code", "hs10", "year", "month", "mdate") if column in df.columns]
     write_metadata_json(output.with_suffix(".metadata.json"), {
         "category": category,
         "canonical_relative_path": output.as_posix(),
         "row_count": int(len(df)),
         "columns": [str(column) for column in df.columns],
-        "key_columns": key_columns,
+        "key_columns": keys,
         "schema_fingerprint": schema_fingerprint,
         "compression": "zstd",
+        "source_fingerprints": source_fingerprints or {},
+        "code_fingerprint": code_fingerprint,
+        "specification_fingerprint": specification_fingerprint,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
     })
     return output

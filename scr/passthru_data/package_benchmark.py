@@ -115,6 +115,11 @@ def build_pdf_reference(config: PipelineConfig) -> dict[str, Any]:
         raw = pd.read_csv(source)
         columns = ["flow", "spec", "outcome", "horizon", "reference_value", "reference_conf_low", "reference_conf_high", "reference_source"]
         reference = raw.loc[(raw["flow"] == "imports") & raw["spec"].isin(["event", "dynamic"]), columns].copy()
+        # The comparison extractor predates the portable-manifest contract and
+        # can contain an absolute path from another workstation.  The frozen
+        # reference is identified by its extraction provenance, not by that
+        # machine-local path.
+        reference["reference_source"] = "existing_local_vector_extraction"
         counts = reference.groupby(["spec", "outcome"], dropna=False).size().to_dict()
         observed = set(counts)
         if observed != required or any(counts[key] != 13 for key in required):
@@ -176,18 +181,72 @@ def finalize_package_pdf_comparison(config: PipelineConfig) -> dict[str, Any]:
     payload = {"status": "passed" if gate_passed else "failed", "max_abs_difference": float(merged["abs_difference"].max()), "required_threshold": 1.10, "comparisons": summary.to_dict(orient="records"), "reference_path": _repo_relative(config, reference_path), "comparison_path": _repo_relative(config, comparison_path), "missing_export_fig_04b": True}
     write_metadata_json(out_dir / "package_pdf_comparison_manifest.json", payload)
     manifest_path = out_dir / "package_full_manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest.get("status") == "complete" and manifest.get("completed_fit_count") == len(EXPECTED_FIT_IDS) and manifest.get("expected_fit_count") == len(EXPECTED_FIT_IDS):
-            manifest["package_pdf_gate"] = payload["status"]
-            manifest["package_pdf_comparison_manifest"] = _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")
-            write_metadata_json(manifest_path, manifest)
-        else:
-            write_metadata_json(out_dir / "package_pdf_comparison_blocked_manifest.json", {"version": "v5", "status": "blocked", "reason": "package_full_manifest is partial or incomplete", "comparison_manifest": _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")})
+    # Finalization is global: a selective invocation must never determine the
+    # canonical manifest.  Reconstruct completeness from the checkpoint grid
+    # on disk and only then attach the PDF gate.
+    checkpoint_records: list[dict[str, Any]] = []
+    for fit_id in sorted(EXPECTED_FIT_IDS):
+        _, spec, outcome = fit_id.split("|")
+        directory = out_dir / "checkpoints" / spec / outcome
+        try:
+            checkpoint_manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+            coefficient = read_table(directory / "coefficients.parquet")
+            audit = read_table(directory / "sample_audit.parquet")
+            horizon_column = "event_time" if "event_time" in coefficient.columns else "horizon"
+            valid = (
+                checkpoint_manifest.get("fit_id") == fit_id
+                and checkpoint_manifest.get("source_mode") == "package_full_benchmark"
+                and checkpoint_manifest.get("source_fingerprint") == _fingerprint(out_dir / "cache" / "package_full_panel_hs10fixed.parquet")
+                and checkpoint_manifest.get("estimator_fingerprint") == estimator_fingerprint(config)
+                and checkpoint_manifest.get("specification_fingerprint") == specification_fingerprint(config)
+                and len(coefficient) == 13
+                and coefficient[horizon_column].nunique() == 13
+                and int(checkpoint_manifest.get("observation_count", -1)) == int(coefficient["nobs"].iloc[0]) == int(audit["nobs"].iloc[0])
+            )
+            if valid:
+                checkpoint_records.append({"fit_id": fit_id, "spec": spec, "outcome": outcome, "manifest": checkpoint_manifest, "coefficient": coefficient})
+        except Exception:
+            continue
+    if len(checkpoint_records) == len(EXPECTED_FIT_IDS) and payload["status"] == "passed":
+        existing = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+        existing.update({
+            "version": "v5",
+            "source_mode": "package_full_benchmark",
+            "status": "complete",
+            "expected_fit_count": len(EXPECTED_FIT_IDS),
+            "completed_fit_count": len(checkpoint_records),
+            "completed_fit_ids": [record["fit_id"] for record in checkpoint_records],
+            "specifications_attempted": ["event", "dynamic"],
+            "outcomes": list(OUTCOMES),
+            "package_pdf_gate": "passed",
+            "package_pdf_comparison_manifest": _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json"),
+            "package_pdf_reference_manifest": _repo_relative(config, out_dir / "reference" / "package_pdf_reference_manifest.json"),
+            "fits": [{
+                "fit_id": record["fit_id"],
+                "specification": record["spec"],
+                "outcome": record["outcome"],
+                "source_path": record["manifest"].get("source_path"),
+                "source_fingerprint": record["manifest"].get("source_fingerprint"),
+                "estimator_fingerprint": record["manifest"].get("estimator_fingerprint"),
+                "specification_fingerprint": record["manifest"].get("specification_fingerprint"),
+                "sample_hash": record["manifest"].get("sample_hash"),
+                "treatment_hash": record["manifest"].get("treatment_hash"),
+                "observation_count": record["manifest"].get("observation_count"),
+                "coefficient_path": _repo_relative(config, out_dir / "checkpoints" / record["spec"] / record["outcome"] / "coefficients.parquet"),
+                "sample_audit_path": _repo_relative(config, out_dir / "checkpoints" / record["spec"] / record["outcome"] / "sample_audit.parquet"),
+                "manifest_path": _repo_relative(config, out_dir / "checkpoints" / record["spec"] / record["outcome"] / "manifest.json"),
+                "horizon_count": 13,
+                "pdf_max_abs_difference": next((row["max_abs_difference"] for row in payload["comparisons"] if row["spec"] == record["spec"] and row["outcome"] == record["outcome"]), None),
+            } for record in checkpoint_records],
+        })
+        write_metadata_json(manifest_path, existing)
+    else:
+        write_metadata_json(out_dir / "package_pdf_comparison_blocked_manifest.json", {"version": "v5", "status": "blocked", "reason": "global eight-fit checkpoint grid is incomplete or PDF comparison failed", "valid_checkpoint_count": len(checkpoint_records), "expected_fit_count": len(EXPECTED_FIT_IDS), "comparison_manifest": _repo_relative(config, out_dir / "package_pdf_comparison_manifest.json")})
     (out_dir / "package_benchmark_report.md").write_text(
         "# Package-full benchmark v5\n\n"
         "The package-only benchmark uses the authors' estimation data and does not join raw Census keys.\n\n"
         f"- PDF gate: **{payload['status']}**\n- Maximum absolute difference: `{payload['max_abs_difference']:.6f}` log points\n"
+        f"- Validated fits: `{len(checkpoint_records)}/{len(EXPECTED_FIT_IDS)}`\n"
         "- Export Figure 4b: unavailable in the local package and excluded from this gate.\n",
         encoding="utf-8",
     )

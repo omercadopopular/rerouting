@@ -133,13 +133,22 @@ def write_parquet(df: pd.DataFrame, path: Path, overwrite: bool = True) -> Path:
     try:
         df.to_parquet(temporary, index=False, compression="zstd")
         import pyarrow.parquet as pq
-        table = pq.ParquetFile(temporary).read()
-        if list(table.column_names) != list(df.columns) or table.num_rows != len(df):
+        parquet_file = pq.ParquetFile(temporary)
+        metadata = parquet_file.metadata
+        schema_names = parquet_file.schema_arrow.names
+        if list(schema_names) != list(df.columns) or metadata.num_rows != len(df):
             raise ValueError("Parquet validation failed: schema or row count mismatch")
-        row_group = pq.ParquetFile(temporary).metadata.row_group(0)
+        if metadata.num_row_groups == 0:
+            raise ValueError("Parquet validation failed: no row groups")
+        row_group = metadata.row_group(0)
         compression = {row_group.column(i).compression for i in range(row_group.num_columns)}
         if compression != {"ZSTD"}:
             raise ValueError(f"Parquet validation failed: expected ZSTD, got {compression}")
+        # pyarrow keeps the file descriptor alive through the ParquetFile
+        # object; explicitly release it before Windows replaces the file.
+        del row_group
+        del metadata
+        del parquet_file
         temporary.replace(path)
     finally:
         if temporary.exists():
