@@ -43,8 +43,8 @@ def validate_extension_v2(config: PipelineConfig, *, start_period: str = "2013-0
                 s = str(staging).replace("'", "''")
                 result = con.execute(
                     f"""
-                    WITH v AS (SELECT partner_code, hs10, year, month, trade_value, quantity FROM read_parquet('{p}')),
-                         s AS (SELECT partner_code, hs10, year, month, trade_value, quantity FROM read_parquet('{s}') WHERE period='{period}')
+                    WITH v AS (SELECT lpad(cast(partner_code AS varchar),4,'0') AS partner_code, lpad(cast(hs10 AS varchar),10,'0') AS hs10, year, cast(month AS integer) AS month, trade_value, quantity FROM read_parquet('{p}')),
+                         s AS (SELECT lpad(cast(partner_code AS varchar),4,'0') AS partner_code, lpad(cast(hs10 AS varchar),10,'0') AS hs10, year, cast(month AS integer) AS month, trade_value, quantity FROM read_parquet('{s}') WHERE period='{period}')
                     SELECT (SELECT count(*) FROM v), (SELECT count(*) FROM s),
                            (SELECT count(DISTINCT (partner_code,hs10,year,month)) FROM v),
                            (SELECT count(DISTINCT (partner_code,hs10,year,month)) FROM s),
@@ -63,6 +63,12 @@ def validate_extension_v2(config: PipelineConfig, *, start_period: str = "2013-0
     frame.groupby(["flow", "status"], dropna=False).size().reset_index(name="months").to_csv(verification / "extension_v2_staging_comparison.csv", index=False)
     manifest = {"version": VERSION, "created_at_utc": datetime.now(timezone.utc).isoformat(), "rows": int(len(frame)), "passed": int((frame["status"] == "passed").sum()) if not frame.empty else 0, "failed": int((frame["status"] != "passed").sum()) if not frame.empty else 0, "status": "passed" if not frame.empty and bool((frame["status"] == "passed").all()) else "pending_or_failed"}
     write_metadata_json(verification / "extension_v2_staging_comparison_manifest.json", manifest)
+    build_manifest_path = verification / "extension_build_manifest.json"
+    if build_manifest_path.exists():
+        build_manifest = json.loads(build_manifest_path.read_text(encoding="utf-8"))
+        build_manifest["staging_projection_comparison_gate"] = "passed" if manifest["status"] == "passed" else "failed"
+        build_manifest["staging_comparison_manifest"] = "data/verification/passthru_data/extension_v2/extension_v2_staging_comparison_manifest.json"
+        write_metadata_json(build_manifest_path, build_manifest)
     return manifest
 
 
