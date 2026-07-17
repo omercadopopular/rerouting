@@ -315,15 +315,14 @@ The raw-only extension now covers all 312 locally available flow-months through
 2025-12 in ZSTD Parquet, with zero monthly reconciliation failures. It contains
 no package tariff fields; legal-policy and event-study gates remain false.
 
-Archive-native extension v2 is currently limited to a December 2025 smoke build;
-the staging-projection extension remains the broader 312-partition artifact until
-the complete ZIP audit and concordance-vintage checks pass.
+Archive-native extension v2 now covers all 312 flow-months through December 2025;
+its ZIP/staging value, key, and quantity comparison passes. Native
+concordance-vintage and CPI real-value checks remain pending.
 
 The 16-fit raw-outcome bridge has now completed with reproducible checkpoints,
-but its registered outcome gate remains failed. The archive-native validator is
-still running across the full local ZIP set; the 312-partition staging projection
-must not be described as archive-validated until that scan and the concordance
-audit are complete.
+but its registered outcome gate remains failed. The archive-native validator has
+completed the full local ZIP set; concordance mapping remains a separate pending
+gate and the 2025 policy/event layer is not estimated.
 
 ### 2026-07-17 gate separation update
 

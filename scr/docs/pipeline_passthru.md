@@ -336,16 +336,16 @@ and duty-price bridge gates remain failed, so Section 301 v5 estimation is pause
 
 The local trade inventory confirms 156 import and 156 export archives for every
 month from 2013-01 through 2025-12, plus one auxiliary concordance per flow. The
-raw-only extension now contains 312 ZSTD Parquet partitions with zero monthly
-reconciliation failures and no package-policy columns. Price and duty-price bridge
-metrics remain failed, so Section 301 v5 estimation and the 2025 event regression
-remain blocked.
+archive-native extension v2 now contains all 312 ZSTD Parquet partitions with
+zero monthly value, key, or quantity reconciliation failures and no
+package-policy columns. Price and duty-price bridge metrics remain failed, so
+Section 301 v5 estimation and the 2025 event regression remain blocked.
 
 The archive-native validator passes a stratified set of 10 flow-months,
 including 2013-01, 2018-07, 2019-04, 2020-01, and 2025-12. A complete 312-archive
-scan remains pending because the local fixed-width parser is materially slower
-than the staging projection. Archive-native extension v2 has been smoke-tested
-for 2025-12 and preserves import duty fields; it is not yet a full release.
+scan is complete. Archive-native extension v2 covers all 312 flow-months and
+preserves import duty fields separately; its staging comparison passes while
+native concordance-vintage and CPI real-value gates remain pending.
 
 ### 2026-07-17 aligned bridge and extension v2
 
