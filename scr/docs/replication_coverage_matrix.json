@@ -1,14 +1,16 @@
 {
-  "created_at": "2026-07-16",
+  "created_at": "2026-07-17",
   "package_import_pdf_gate": "passed",
   "package_provenance_gate": "passed",
   "raw_trade_staging_projection_gate": "passed",
-  "raw_trade_archive_validation_gate": "pending",
+  "raw_trade_archive_validation_gate": "passed_monthly_value_pending_key_duty",
   "raw_trade_concordance_gate": "pending",
   "raw_outcome_bridge_gate": "failed",
+  "raw_outcome_bridge_detail": "historical_natural_sample_failed; aligned_import_v2_completed_but_failed_registered_metrics",
   "independent_policy_gate": "failed",
   "section301_v5_ready": false,
   "event_2025_ready": false,
+  "aligned_bridge_import_universe": {"rows": 4197758, "keys_identical": true, "policy_semantics_changed": false},
   "items": {
     "figure_2_import_event": "gate_passed",
     "figure_4a_import_dynamic": "gate_passed",
@@ -16,6 +18,7 @@
     "common_sample_bridge": "gate_failed",
     "independent_section301_policy": "gate_failed",
     "raw_trade_extension_2025": "ran_no_gate",
+    "raw_trade_extension_v2": "code_only",
     "event_2025": "blocked_missing_data"
   }
 }

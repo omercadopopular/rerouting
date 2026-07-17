@@ -347,6 +347,15 @@ scan remains pending because the local fixed-width parser is materially slower
 than the staging projection. Archive-native extension v2 has been smoke-tested
 for 2025-12 and preserves import duty fields; it is not yet a full release.
 
+### 2026-07-17 aligned bridge and extension v2
+
+The canonical package manifest was re-finalized from the complete eight-fit
+checkpoint grid and now records the passed PDF gate. A new import-only aligned
+bridge has 4,197,758 identical package/raw keys with symmetric outcome masks;
+the historical natural-sample bridge remains a separate failed diagnostic.
+Archive-native extension v2 is being built separately with raw duty fields and
+no package-policy columns. The 2025 policy layer remains preflight-only.
+
 ### 2026-07-16 bridge completion
 
 The corrected resumable bridge completed all 16 package-common/raw-outcome

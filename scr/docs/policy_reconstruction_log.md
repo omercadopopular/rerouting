@@ -650,3 +650,12 @@ fingerprint. The corrected finalizer reports the registered metrics without
 mixing the `p` and `pduty` fit IDs. Five outcome/specification comparisons remain
 outside the registered bridge thresholds; no policy semantics were changed and
 v5 empirical estimation remains blocked.
+
+### 2026-07-17 aligned bridge and extension v2
+
+Package/PDF finalization now derives completeness from all eight valid
+checkpoints. The aligned bridge uses the raw import universe and symmetric
+outcome masks (4,197,758 identical keys), while the old natural-sample bridge
+is retained as historical failed evidence. Archive-native extension v2 is a
+separate local ZIP build preserving source duty fields; no independent 2025
+policy or event estimate is activated.

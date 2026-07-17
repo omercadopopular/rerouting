@@ -324,3 +324,12 @@ but its registered outcome gate remains failed. The archive-native validator is
 still running across the full local ZIP set; the 312-partition staging projection
 must not be described as archive-validated until that scan and the concordance
 audit are complete.
+
+### 2026-07-17 gate separation update
+
+The package import/PDF gate is passed independently of the raw-outcome bridge.
+The new aligned bridge is import-only with identical keys and symmetric outcome
+masks; Section 301 v5 remains blocked until its registered bridge gate passes.
+Extension v2 reads local ZIP detail members into separate nominal partitions,
+preserving raw duty fields without package policy. The 2025 policy/event layer
+remains schema, source-inventory, and preregistration only.
