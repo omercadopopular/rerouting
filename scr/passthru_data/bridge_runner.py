@@ -19,13 +19,13 @@ from .trade_regressions import _prepare_dynamic, _prepare_event_study, _run_dyna
 from .bridge_diagnostics import curve_metrics
 
 
-VERSION = "bridge_v1"
+VERSION = "bridge_v2_aligned_import"
 SOURCE_MODES = ("package_common_sample_anchor", "raw_outcomes_package_policy")
 SPECS = ("event", "dynamic")
 
 
 def bridge_root(config: PipelineConfig) -> Path:
-    path = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample" / "bridge_resumable"
+    path = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v2" / "bridge_resumable"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -81,10 +81,10 @@ def _specification_hash(spec: str, outcome: str) -> str:
 
 
 def _source_paths(config: PipelineConfig) -> dict[str, Path]:
-    root = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample"
+    root = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v2"
     return {
-        "package_common_sample_anchor": root / "package_common_sample_hs10fixed.parquet",
-        "raw_outcomes_package_policy": root / "raw_outcomes_package_policy_hs10fixed.parquet",
+        "package_common_sample_anchor": root / "package_common_sample_aligned.parquet",
+        "raw_outcomes_package_policy": root / "raw_outcomes_package_policy_aligned.parquet",
     }
 
 
@@ -108,16 +108,32 @@ def _checkpoint_valid(directory: Path, fit_id: str, source_hash: str, sample_has
             and manifest.get("treatment_hash") == treatment_hash
             and manifest.get("specification_hash") == spec_hash
             and manifest.get("estimator_fingerprint") == code_hash
-            and len(coefficient) >= 13
+            and manifest.get("status") == "complete"
+            and len(coefficient) == 13
             and coefficient[horizon].nunique() == 13
             and int(manifest.get("nobs", -1)) == int(audit["nobs"].iloc[0])
+            and "estimate" in coefficient.columns
+            and {"conf_low", "conf_high"}.issubset(coefficient.columns)
         )
     except Exception:
         return False
 
 
 def _write_current_fit(root: Path, fit_id: str, rows: int, formula: str, fixed_effects: str, clusters: str) -> None:
-    write_metadata_json(root / "current_fit.json", {"version": VERSION, "fit_id": fit_id, "rows": int(rows), "estimated_memory_bytes": int(rows * 16 * 8), "formula": formula, "fixed_effects": fixed_effects, "clusters": clusters, "started_at_utc": datetime.now(timezone.utc).isoformat()})
+    mode, spec, outcome = fit_id.split("|", 2)
+    write_metadata_json(root / "current_fit.json", {
+        "version": VERSION,
+        "fit_id": fit_id,
+        "source_mode": mode,
+        "specification": spec,
+        "outcome": outcome,
+        "rows": int(rows),
+        "estimated_memory_bytes": int(rows * 16 * 8),
+        "formula": formula,
+        "fixed_effects": fixed_effects,
+        "clusters": clusters,
+        "started_at_utc": datetime.now(timezone.utc).isoformat(),
+    })
 
 
 def _load_mode_frame(path: Path, spec: str) -> tuple[pd.DataFrame, str, str, str]:
@@ -219,9 +235,22 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
     coefficients = pd.concat(records, ignore_index=True)
     sample_audit = pd.concat(audits, ignore_index=True)
     provenance_frame = pd.DataFrame(provenance)
-    write_parquet(coefficients, root / "bridge_coefficients.parquet", overwrite=True)
-    write_parquet(sample_audit, root / "bridge_sample_audit.parquet", overwrite=True)
-    write_parquet(provenance_frame, root / "bridge_provenance.parquet", overwrite=True)
+    derived_write_warnings: list[str] = []
+    for frame, destination in (
+        (coefficients, root / "bridge_coefficients.parquet"),
+        (sample_audit, root / "bridge_sample_audit.parquet"),
+        (provenance_frame, root / "bridge_provenance.parquet"),
+    ):
+        try:
+            write_parquet(frame, destination, overwrite=True)
+        except PermissionError as exc:
+            # OneDrive can transiently lock an already-valid derived artifact.
+            # Preserve that artifact and continue finalization; the warning is
+            # recorded so this is never mistaken for a clean atomic rewrite.
+            if destination.exists():
+                derived_write_warnings.append(f"{destination.name}: {exc}")
+            else:
+                raise
     comparisons: list[dict[str, Any]] = []
     for spec in SPECS:
         for outcome in OUTCOMES:
@@ -238,7 +267,10 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
             differences = merged["estimate_package"] - merged["estimate_raw"]
             metric_frame = merged.rename(columns={"event_time": "horizon"})
             metric = curve_metrics(metric_frame, exclude_baseline=False) if {"conf_low_package", "conf_high_package", "conf_low_raw", "conf_high_raw"}.issubset(metric_frame.columns) else {}
+            post = merged.loc[merged[horizon] >= 0]
+            post_sign = float((np.sign(post["estimate_package"]) == np.sign(post["estimate_raw"])).mean()) if not post.empty else float("nan")
             record = {"spec": spec, "outcome": outcome, "n_points": len(merged), "correlation": float(merged["estimate_package"].corr(merged["estimate_raw"])), "rmse": float(np.sqrt(np.mean(differences**2))), "max_abs_difference": float(differences.abs().max()), **metric}
+            record["post_treatment_sign_agreement"] = post_sign
             failed = []
             if record["correlation"] < 0.95:
                 failed.append("correlation")
@@ -248,24 +280,52 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
                 failed.append("max_abs_difference")
             if record.get("ci_overlap", 0.0) < 0.80:
                 failed.append("ci_overlap")
+            if post_sign < 0.5:
+                failed.append("post_treatment_sign_agreement")
             record["failed_metrics"] = failed
+            if not failed:
+                record["failure_classification"] = "passed"
+            elif spec == "dynamic" and outcome in {"p", "pduty"} and record.get("max_abs_difference", 0.0) <= 0.5:
+                record["failure_classification"] = "registered_metric_instability_or_price_outcome_discrepancy"
+            else:
+                record["failure_classification"] = "outcome_construction_or_source_data_discrepancy"
             record["registered_numeric_gate"] = not failed
             comparisons.append(record)
     comparison_frame = pd.DataFrame(comparisons)
-    write_parquet(comparison_frame, root / "bridge_comparison.parquet", overwrite=True)
+    try:
+        write_parquet(comparison_frame, root / "bridge_comparison.parquet", overwrite=True)
+    except PermissionError:
+        if not (root / "bridge_comparison.parquet").exists():
+            raise
     comparison_frame.to_csv(root / "bridge_comparison.csv", index=False)
     write_metadata_json(root / "bridge_gate.json", {
         "version": VERSION,
         "status": "failed" if any(row.get("failed_metrics") for row in comparisons) else "pending_sign_check",
         "bridge_gate": "registered_numeric_metrics_plus_post_treatment_sign",
         "registered_numeric_gate": all(row.get("registered_numeric_gate", False) for row in comparisons),
-        "post_treatment_sign_gate": "not_computed_by_finalizer",
+        "post_treatment_sign_gate": all(row.get("post_treatment_sign_agreement", 0.0) >= 0.5 for row in comparisons),
+        "post_treatment_sign_threshold": 0.5,
         "v5_ready": False,
+        "derived_write_warnings": derived_write_warnings,
         "failed_fit_metrics": [{"spec": row["spec"], "outcome": row["outcome"], "failed_metrics": row.get("failed_metrics", [])} for row in comparisons if row.get("failed_metrics")],
+        "failure_classifications": [{"spec": row["spec"], "outcome": row["outcome"], "classification": row.get("failure_classification"), "failed_metrics": row.get("failed_metrics", [])} for row in comparisons],
     })
     payload["status"] = "complete"
     write_metadata_json(root / "progress.json", payload)
-    (root / "bridge_report.md").write_text("# Resumable bridge v1\n\nThis bridge is diagnostic and does not alter Section 301 policy semantics.\n", encoding="utf-8")
+    lines = [
+        "# Resumable aligned import bridge v2",
+        "",
+        "This bridge uses one raw import universe with symmetric outcome masks. It is diagnostic and does not alter Section 301 policy semantics.",
+        "",
+        "- Expected fits: 16; completed fits: 16.",
+        "- Registered thresholds: correlation >= 0.95; RMSE <= 1.25; maximum difference <= 2.50; CI overlap >= 0.80; post-treatment sign >= 0.50.",
+        "- CI overlap is intersection length divided by union length; the normalized -6 baseline is reported but excluded from the mean.",
+        "",
+        comparison_frame.to_markdown(index=False),
+        "",
+        "Section 301 v5 empirical estimation remains blocked until every required aligned comparison passes. The independent legal-policy gate is separate and remains false.",
+    ]
+    (root / "bridge_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (root / "current_fit.json").unlink(missing_ok=True)
     return payload
 
