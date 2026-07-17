@@ -40,7 +40,9 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
                 missing.append({"flow": flow, "period": period, "archive": _repo_relative(config, archive)})
                 continue
             if partition.exists() and audit_path.exists() and not overwrite:
-                audits.append(json.loads(audit_path.read_text(encoding="utf-8")))
+                prior = json.loads(audit_path.read_text(encoding="utf-8"))
+                prior.setdefault("status", "passed" if bool(prior.get("reconciliation_pass")) else "failed")
+                audits.append(prior)
                 continue
             frame, audit = _parse_archive(config, flow, period, archive)
             frame["parser_version"] = VERSION
@@ -57,6 +59,7 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
                 "quantity_missing_rows": int(frame["quantity_missing"].sum()),
                 "quantity_zero_rows": int(frame["quantity_zero"].sum()),
                 "quantity_positive_rows": int((frame["quantity"] > 0).sum()),
+                "status": "passed" if bool(audit.get("reconciliation_pass")) else "failed",
             })
             write_metadata_json(audit_path, audit)
             audits.append(audit)
