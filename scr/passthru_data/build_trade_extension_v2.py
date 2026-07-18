@@ -42,6 +42,14 @@ def build_extension_v2(config: PipelineConfig, *, start_period: str = "2013-01",
             if partition.exists() and audit_path.exists() and not overwrite:
                 prior = json.loads(audit_path.read_text(encoding="utf-8"))
                 prior.setdefault("status", "passed" if bool(prior.get("reconciliation_pass")) else "failed")
+                # Older v2 audit JSON used the source-facing names directly.
+                # Normalize them here so a no-overwrite consolidation cannot
+                # silently emit a quantity audit with only partition IDs.
+                prior.setdefault("source_quantity_missing_rows", prior.get("quantity_missing_rows"))
+                prior.setdefault("source_quantity_zero_rows", prior.get("quantity_zero_rows"))
+                prior.setdefault("output_quantity_missing_rows", prior.get("quantity_missing_rows"))
+                prior.setdefault("output_quantity_zero_rows", prior.get("quantity_zero_rows"))
+                prior.setdefault("output_quantity_positive_rows", prior.get("quantity_positive_rows"))
                 audits.append(prior)
                 continue
             frame, audit = _parse_archive(config, flow, period, archive)
