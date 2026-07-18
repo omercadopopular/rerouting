@@ -46,6 +46,9 @@ def curve_metrics(merged: pd.DataFrame, *, exclude_baseline: bool) -> dict[str, 
 
 
 def _root(config: PipelineConfig) -> Path:
+    v3 = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v3"
+    if (v3 / "package_common_sample_anchor.parquet").exists() and (v3 / "raw_outcomes_package_policy.parquet").exists():
+        return v3 / "bridge_diagnosis"
     return config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample" / "bridge" / "diagnosis"
 
 
@@ -60,8 +63,15 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
     import duckdb
 
     base = config.verification_dir / "trade_regressions" / "package_benchmark_v5"
-    package = base / "cache" / "package_full_panel_hs10fixed.parquet"
-    raw = base / "common_sample" / "raw_outcomes_package_policy_hs10fixed.parquet"
+    v3_base = base / "common_sample_v3"
+    package = v3_base / "package_common_sample_anchor.parquet"
+    raw = v3_base / "raw_outcomes_package_policy.parquet"
+    if not package.exists() or not raw.exists():
+        package = base / "cache" / "package_full_panel_hs10fixed.parquet"
+        raw = base / "common_sample" / "raw_outcomes_package_policy_hs10fixed.parquet"
+    bridge_root = base / "common_sample_v3" / "bridge_resumable"
+    if not bridge_root.exists():
+        bridge_root = base / "common_sample" / "bridge"
     if not package.exists() or not raw.exists():
         raise FileNotFoundError("Corrected package and raw bridge panels are required")
     out = _root(config)
@@ -117,7 +127,7 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
     for mode in ("package_common_sample_anchor", "raw_outcomes_package_policy"):
         for spec in ("event", "dynamic"):
             for outcome in OUTCOMES:
-                path = base / "common_sample" / "bridge" / mode / spec / f"{outcome}.parquet"
+                path = bridge_root / mode / spec / outcome / "coefficients.parquet" if bridge_root.name == "bridge_resumable" else bridge_root / mode / spec / f"{outcome}.parquet"
                 if path.exists():
                     frame = read_table(path, columns=["nobs"])
                     loss_rows.append({"source_mode": mode, "stage": f"effective_{spec}_{outcome}", "rows": int(frame["nobs"].iloc[0]) if not frame.empty else 0, "products": None, "countries": None, "key_hash": None})
@@ -125,23 +135,26 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
     pd.DataFrame(loss_rows).groupby(["source_mode", "stage"], dropna=False).agg(rows=("rows", "sum")).reset_index().to_csv(out / "bridge_sample_loss_summary.csv", index=False)
 
     ci_rows: list[dict[str, object]] = []
-    bridge_root = base / "common_sample" / "bridge"
     for spec in ("event", "dynamic"):
         for outcome in OUTCOMES:
-            left = read_table(bridge_root / "package_common_sample_anchor" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
-            right = read_table(bridge_root / "raw_outcomes_package_policy" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
-            merged = left.merge(right, on=["flow", "spec", "outcome", "horizon"], suffixes=("_package", "_raw"), validate="one_to_one")
+            left = read_table(bridge_root / "package_common_sample_anchor" / spec / outcome / "coefficients.parquet" if bridge_root.name == "bridge_resumable" else bridge_root / "package_common_sample_anchor" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            right = read_table(bridge_root / "raw_outcomes_package_policy" / spec / outcome / "coefficients.parquet" if bridge_root.name == "bridge_resumable" else bridge_root / "raw_outcomes_package_policy" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            merged = left.merge(right, on=["horizon"], suffixes=("_package", "_raw"), validate="one_to_one")
             for _, row in merged.iterrows():
                 overlap = ci_overlap(row["conf_low_package"], row["conf_high_package"], row["conf_low_raw"], row["conf_high_raw"], baseline=bool(row["horizon"] == -6))
                 ci_rows.append({"spec": spec, "outcome": outcome, "horizon": int(row["horizon"]), "baseline": int(row["horizon"] == -6), "ci_overlap": overlap})
     ci = pd.DataFrame(ci_rows)
     write_parquet(ci, out / "bridge_ci_overlap_audit.parquet", overwrite=True)
     sensitivity: list[dict[str, object]] = []
+    influential: list[dict[str, object]] = []
     for spec in ("event", "dynamic"):
         for outcome in OUTCOMES:
-            left = read_table(bridge_root / "package_common_sample_anchor" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
-            right = read_table(bridge_root / "raw_outcomes_package_policy" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
-            merged = left.merge(right, on=["flow", "spec", "outcome", "horizon"], suffixes=("_package", "_raw"), validate="one_to_one")
+            left = read_table(bridge_root / "package_common_sample_anchor" / spec / outcome / "coefficients.parquet" if bridge_root.name == "bridge_resumable" else bridge_root / "package_common_sample_anchor" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            right = read_table(bridge_root / "raw_outcomes_package_policy" / spec / outcome / "coefficients.parquet" if bridge_root.name == "bridge_resumable" else bridge_root / "raw_outcomes_package_policy" / spec / f"{outcome}.parquet").rename(columns={"event_time": "horizon"})
+            merged = left.merge(right, on=["horizon"], suffixes=("_package", "_raw"), validate="one_to_one")
+            ranked = merged.assign(abs_difference=(merged["estimate_package"] - merged["estimate_raw"]).abs()).sort_values("abs_difference", ascending=False).head(3)
+            for rank, row in enumerate(ranked.itertuples(index=False), start=1):
+                influential.append({"spec": spec, "outcome": outcome, "rank": rank, "horizon": int(row.horizon), "absolute_difference": float(row.abs_difference)})
             for exclude_baseline in (False, True):
                 sensitivity.append({
                     "comparison": "package_common_vs_raw_outcomes_package_policy",
@@ -151,6 +164,8 @@ def run_bridge_diagnostics(config: PipelineConfig) -> dict[str, object]:
                     **curve_metrics(merged, exclude_baseline=exclude_baseline),
                 })
     pd.DataFrame(sensitivity).to_csv(out / "bridge_metric_sensitivity.csv", index=False)
+    write_parquet(pd.DataFrame(influential), out / "bridge_influential_horizons.parquet", overwrite=True)
+    pd.DataFrame(influential).to_csv(out / "bridge_influential_horizons.csv", index=False)
     summary = equivalence.loc[equivalence["breakdown"] == "all"].copy()
     summary_path = out / "bridge_outcome_equivalence_summary.csv"
     sensitivity_frame = pd.DataFrame(sensitivity)

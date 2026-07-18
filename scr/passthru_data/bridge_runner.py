@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import argparse
+import gc
 import hashlib
 import json
 
@@ -19,13 +20,13 @@ from .trade_regressions import _prepare_dynamic, _prepare_event_study, _run_dyna
 from .bridge_diagnostics import curve_metrics
 
 
-VERSION = "bridge_v2_aligned_import"
+VERSION = "bridge_v3_source_separation"
 SOURCE_MODES = ("package_common_sample_anchor", "raw_outcomes_package_policy")
 SPECS = ("event", "dynamic")
 
 
 def bridge_root(config: PipelineConfig) -> Path:
-    path = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v2" / "bridge_resumable"
+    path = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v3" / "bridge_resumable"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -81,10 +82,10 @@ def _specification_hash(spec: str, outcome: str) -> str:
 
 
 def _source_paths(config: PipelineConfig) -> dict[str, Path]:
-    root = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v2"
+    root = config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "common_sample_v3"
     return {
-        "package_common_sample_anchor": root / "package_common_sample_aligned.parquet",
-        "raw_outcomes_package_policy": root / "raw_outcomes_package_policy_aligned.parquet",
+        "package_common_sample_anchor": root / "package_common_sample_anchor.parquet",
+        "raw_outcomes_package_policy": root / "raw_outcomes_package_policy.parquet",
     }
 
 
@@ -119,7 +120,7 @@ def _checkpoint_valid(directory: Path, fit_id: str, source_hash: str, sample_has
         return False
 
 
-def _write_current_fit(root: Path, fit_id: str, rows: int, formula: str, fixed_effects: str, clusters: str) -> None:
+def _write_current_fit(root: Path, fit_id: str, rows: int, formula: str, fixed_effects: str, clusters: str, *, source_hash: str, sample_hash: str, treatment_hash: str, specification_hash: str, estimator_hash: str) -> None:
     mode, spec, outcome = fit_id.split("|", 2)
     write_metadata_json(root / "current_fit.json", {
         "version": VERSION,
@@ -132,6 +133,11 @@ def _write_current_fit(root: Path, fit_id: str, rows: int, formula: str, fixed_e
         "formula": formula,
         "fixed_effects": fixed_effects,
         "clusters": clusters,
+        "source_hash": source_hash,
+        "sample_hash": sample_hash,
+        "treatment_hash": treatment_hash,
+        "specification_hash": specification_hash,
+        "estimator_fingerprint": estimator_hash,
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -153,21 +159,23 @@ def run_bridge(config: PipelineConfig, *, source_modes: tuple[str, ...] = SOURCE
     all_expected = expected_fit_ids()
     code_hash = estimator_fingerprint()
     state: dict[str, Any] = {"version": VERSION, "expected_fit_ids": sorted(all_expected), "requested_fit_ids": sorted(selected), "completed_fit_ids": [], "stale_fit_ids": [], "failed_fit_ids": []}
-    frames: dict[tuple[str, str], tuple[pd.DataFrame, str, str, str]] = {}
-    for mode in source_modes:
-        for spec in specs:
-            if mode not in paths or not paths[mode].exists():
-                raise FileNotFoundError(f"Missing bridge source for {mode}: {paths.get(mode)}")
-            frames[(mode, spec)] = _load_mode_frame(paths[mode], spec)
     if preflight_only:
-        for fit_id in sorted(selected):
-            mode, spec, outcome = fit_id.split("|")
-            _, source_hash, sample_hash, treatment_hash = frames[(mode, spec)]
-            directory = root / mode / spec / outcome
-            if _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, _specification_hash(spec, outcome), code_hash):
-                state["completed_fit_ids"].append(fit_id)
-            elif (directory / "manifest.json").exists():
-                state["stale_fit_ids"].append(fit_id)
+        # Prepare one source/specification at a time. Holding all four
+        # multi-million-row frames caused excessive memory pressure during
+        # bridge preflight.
+        for mode in source_modes:
+            for spec in specs:
+                if mode not in paths or not paths[mode].exists():
+                    raise FileNotFoundError(f"Missing bridge source for {mode}: {paths.get(mode)}")
+                _, source_hash, sample_hash, treatment_hash = _load_mode_frame(paths[mode], spec)
+                for outcome in outcomes:
+                    fit_id = f"{mode}|{spec}|{outcome}"
+                    directory = root / mode / spec / outcome
+                    if _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, _specification_hash(spec, outcome), code_hash):
+                        state["completed_fit_ids"].append(fit_id)
+                    elif (directory / "manifest.json").exists():
+                        state["stale_fit_ids"].append(fit_id)
+                gc.collect()
         state["remaining_fit_ids"] = sorted(selected - set(state["completed_fit_ids"]))
         state["all_remaining_fit_ids"] = sorted(all_expected - set(state["completed_fit_ids"]))
         state["expected_fit_count"] = len(all_expected)
@@ -176,31 +184,52 @@ def run_bridge(config: PipelineConfig, *, source_modes: tuple[str, ...] = SOURCE
         write_metadata_json(root / "progress.json", state)
         return state
     if not finalize_only:
-        for fit_id in sorted(selected):
-            mode, spec, outcome = fit_id.split("|")
-            prepared, source_hash, sample_hash, treatment_hash = frames[(mode, spec)]
-            directory = root / mode / spec / outcome
-            directory.mkdir(parents=True, exist_ok=True)
-            spec_hash = _specification_hash(spec, outcome)
-            if resume and _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, spec_hash, code_hash):
-                state["completed_fit_ids"].append(fit_id)
-                continue
-            _write_current_fit(root, fit_id, len(prepared), f"{outcome} ~ event_horizon" if spec == "event" else f"{outcome} ~ dynamic_horizon", "id + ct + ht" if spec == "event" else "ht + ct + cs", "hs8 + cty_code")
-            try:
-                result = _run_event_study_one(config, "imports", outcome, prepared, mode, str(paths[mode])) if spec == "event" else _run_dynamic_one(config, "imports", outcome, prepared, mode, str(paths[mode]))
-                coefficient = result.frame
-                write_parquet(coefficient, directory / "coefficients.parquet", overwrite=True)
-                nobs = int(coefficient["nobs"].iloc[0])
-                write_parquet(pd.DataFrame([{"fit_id": fit_id, "source_mode": mode, "spec": spec, "outcome": outcome, "nobs": nobs, "sample_hash": sample_hash, "treatment_hash": treatment_hash}]), directory / "sample_audit.parquet", overwrite=True)
-                write_metadata_json(directory / "manifest.json", {"version": VERSION, "fit_id": fit_id, "source_mode": mode, "source_path": _repo_relative(config, paths[mode]), "source_hash": source_hash, "sample_hash": sample_hash, "treatment_hash": treatment_hash, "specification_hash": spec_hash, "estimator_fingerprint": code_hash, "nobs": nobs, "status": "complete", "horizons": 13})
-                if not _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, spec_hash, code_hash):
-                    raise RuntimeError("bridge checkpoint failed post-write validation")
-                state["completed_fit_ids"].append(fit_id)
-                (root / "current_fit.json").unlink(missing_ok=True)
-            except Exception as exc:
-                write_metadata_json(root / "failures" / f"{mode}__{spec}__{outcome}.json", {"version": VERSION, "fit_id": fit_id, "exception_type": type(exc).__name__, "exception_message": str(exc)})
-                state["failed_fit_ids"].append(fit_id)
-                raise
+        for mode in source_modes:
+            for spec in specs:
+                if mode not in paths or not paths[mode].exists():
+                    raise FileNotFoundError(f"Missing bridge source for {mode}: {paths.get(mode)}")
+                prepared, source_hash, sample_hash, treatment_hash = _load_mode_frame(paths[mode], spec)
+                for outcome in outcomes:
+                    fit_id = f"{mode}|{spec}|{outcome}"
+                    directory = root / mode / spec / outcome
+                    directory.mkdir(parents=True, exist_ok=True)
+                    spec_hash = _specification_hash(spec, outcome)
+                    if resume and _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, spec_hash, code_hash):
+                        state["completed_fit_ids"].append(fit_id)
+                        continue
+                    _write_current_fit(
+                        root,
+                        fit_id,
+                        len(prepared),
+                        f"{outcome} ~ event_horizon" if spec == "event" else f"{outcome} ~ dynamic_horizon",
+                        "id + ct + ht" if spec == "event" else "ht + ct + cs",
+                        "hs8 + cty_code",
+                        source_hash=source_hash,
+                        sample_hash=sample_hash,
+                        treatment_hash=treatment_hash,
+                        specification_hash=spec_hash,
+                        estimator_hash=code_hash,
+                    )
+                    try:
+                        result = _run_event_study_one(config, "imports", outcome, prepared, mode, str(paths[mode])) if spec == "event" else _run_dynamic_one(config, "imports", outcome, prepared, mode, str(paths[mode]))
+                        coefficient = result.frame
+                        write_parquet(coefficient, directory / "coefficients.parquet", overwrite=True)
+                        nobs = int(coefficient["nobs"].iloc[0])
+                        write_parquet(pd.DataFrame([{"fit_id": fit_id, "source_mode": mode, "spec": spec, "outcome": outcome, "nobs": nobs, "sample_hash": sample_hash, "treatment_hash": treatment_hash}]), directory / "sample_audit.parquet", overwrite=True)
+                        write_metadata_json(directory / "manifest.json", {"version": VERSION, "fit_id": fit_id, "source_mode": mode, "source_path": _repo_relative(config, paths[mode]), "source_hash": source_hash, "sample_hash": sample_hash, "treatment_hash": treatment_hash, "specification_hash": spec_hash, "estimator_fingerprint": code_hash, "nobs": nobs, "status": "complete", "horizons": 13})
+                        if not _checkpoint_valid(directory, fit_id, source_hash, sample_hash, treatment_hash, spec_hash, code_hash):
+                            raise RuntimeError("bridge checkpoint failed post-write validation")
+                        state["completed_fit_ids"].append(fit_id)
+                        (root / "current_fit.json").unlink(missing_ok=True)
+                        state["completed_fit_count"] = len(set(state["completed_fit_ids"]))
+                        state["remaining_fit_ids"] = sorted(selected - set(state["completed_fit_ids"]))
+                        write_metadata_json(root / "progress.json", state)
+                    except Exception as exc:
+                        write_metadata_json(root / "failures" / f"{mode}__{spec}__{outcome}.json", {"version": VERSION, "fit_id": fit_id, "exception_type": type(exc).__name__, "exception_message": str(exc)})
+                        state["failed_fit_ids"].append(fit_id)
+                        raise
+                del prepared
+                gc.collect()
     return finalize_bridge(config, selected=all_expected, state=state)
 
 
@@ -210,24 +239,41 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
     records: list[pd.DataFrame] = []
     audits: list[pd.DataFrame] = []
     provenance: list[dict[str, Any]] = []
+    invalid_ids: list[str] = []
+    seen_ids: set[str] = set()
+    current_code_hash = estimator_fingerprint()
     for fit_id in sorted(selected):
         mode, spec, outcome = fit_id.split("|")
         directory = root / mode / spec / outcome
-        if not (directory / "coefficients.parquet").exists() or not (directory / "manifest.json").exists():
+        if not (directory / "coefficients.parquet").exists() or not (directory / "manifest.json").exists() or not (directory / "sample_audit.parquet").exists():
+            invalid_ids.append(fit_id)
             continue
+        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+        if fit_id in seen_ids or not _checkpoint_valid(
+            directory,
+            fit_id,
+            str(manifest.get("source_hash", "")),
+            str(manifest.get("sample_hash", "")),
+            str(manifest.get("treatment_hash", "")),
+            str(manifest.get("specification_hash", "")),
+            current_code_hash,
+        ):
+            invalid_ids.append(fit_id)
+            continue
+        seen_ids.add(fit_id)
         coefficient = read_table(directory / "coefficients.parquet")
         coefficient["fit_id"] = fit_id
         coefficient["source_mode"] = mode
         records.append(coefficient)
         audit = read_table(directory / "sample_audit.parquet")
         audits.append(audit)
-        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         provenance.append(manifest)
     completed = {str(frame["fit_id"].iloc[0]) for frame in records}
     payload = dict(state or {})
     payload.update({"version": VERSION, "expected_fit_count": len(selected), "completed_fit_count": len(completed), "completed_fit_ids": sorted(completed), "remaining_fit_ids": sorted(selected - completed)})
-    if completed != selected:
+    if completed != selected or invalid_ids:
         payload["status"] = "partial"
+        payload["invalid_fit_ids"] = sorted(invalid_ids)
         write_metadata_json(root / "progress.json", payload)
         payload["all_remaining_fit_ids"] = sorted(selected - completed)
         write_metadata_json(root / "progress.json", payload)
@@ -313,7 +359,7 @@ def finalize_bridge(config: PipelineConfig, *, selected: set[str] | None = None,
     payload["status"] = "complete"
     write_metadata_json(root / "progress.json", payload)
     lines = [
-        "# Resumable aligned import bridge v2",
+        "# Resumable aligned import bridge v3",
         "",
         "This bridge uses one raw import universe with symmetric outcome masks. It is diagnostic and does not alter Section 301 policy semantics.",
         "",
