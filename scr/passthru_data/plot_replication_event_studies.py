@@ -131,16 +131,23 @@ def _plot_spec(
 def plot_replication_event_studies(config: PipelineConfig) -> dict[str, Any]:
     root = config.verification_dir / "trade_regressions" / "package_benchmark_v5"
     comparison_path = root / "package_pdf_comparison.parquet"
-    bridge_path = root / "common_sample_v3" / "bridge_resumable" / "bridge_coefficients.parquet"
+    v4_bridge_path = root / "common_sample_v4" / "bridge_resumable" / "bridge_coefficients.parquet"
+    v3_bridge_path = root / "common_sample_v3" / "bridge_resumable" / "bridge_coefficients.parquet"
+    bridge_path = v4_bridge_path if v4_bridge_path.exists() else v3_bridge_path
     if not comparison_path.exists() or not bridge_path.exists():
-        raise FileNotFoundError(f"Missing package comparison or v3 bridge coefficients: {comparison_path}, {bridge_path}")
+        raise FileNotFoundError(f"Missing package comparison or bridge coefficients: {comparison_path}, {bridge_path}")
     comparison = pd.read_parquet(comparison_path)
     bridge = pd.read_parquet(bridge_path)
-    pduty_fit_paths = {
-        spec: root / "common_sample_v3" / "pduty_diagnosis" / "fits" / spec / "coefficients.parquet"
-        for spec in ("event", "dynamic")
-    }
-    realized_pduty = all(path.exists() for path in pduty_fit_paths.values())
+    v4_root = root / "common_sample_v4" / "bridge_resumable" / "raw_outcomes_package_policy"
+    v3_root = root / "common_sample_v3" / "pduty_diagnosis" / "fits"
+    v4_pduty_paths = {spec: v4_root / spec / "pduty" / "coefficients.parquet" for spec in ("event", "dynamic")}
+    v3_pduty_paths = {spec: v3_root / spec / "coefficients.parquet" for spec in ("event", "dynamic")}
+    if bridge_path == v4_bridge_path and all(path.exists() for path in v4_pduty_paths.values()):
+        pduty_fit_paths = v4_pduty_paths
+        realized_pduty = True
+    else:
+        pduty_fit_paths = v3_pduty_paths
+        realized_pduty = all(path.exists() for path in v3_pduty_paths.values())
     pduty_fingerprints: dict[str, str] = {}
     if realized_pduty:
         replacements = []
@@ -163,6 +170,7 @@ def plot_replication_event_studies(config: PipelineConfig) -> dict[str, Any]:
         "package_comparison_sha256": sha256_file(comparison_path),
         "bridge_coefficients_path": _relative(config, bridge_path),
         "bridge_coefficients_sha256": sha256_file(bridge_path),
+        "bridge_version": "common_sample_v4_realized_calculated_duty" if bridge_path == v4_bridge_path else "common_sample_v3_historical",
         "event_figure_png": _relative(config, event_path),
         "event_figure_pdf": _relative(config, event_path.with_suffix(".pdf")),
         "dynamic_figure_png": _relative(config, dynamic_path),
