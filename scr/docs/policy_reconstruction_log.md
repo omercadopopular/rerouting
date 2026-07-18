@@ -670,3 +670,7 @@ are not attributed to an algebraically different package-log construction.
 The local ZIP extension remains nominal/raw-only and archive-complete, but
 quantity-token, obsolete-concordance mapping, CPI-real, and independent-policy
 gates are not promoted without their own evidence.
+
+The exact package-common loss audit finds 1,244 keys absent from the aligned raw
+panel. This is a source-universe loss, not a tariff-rate substitution; detailed
+keys remain Parquet-only and the raw-outcome bridge gate remains failed.

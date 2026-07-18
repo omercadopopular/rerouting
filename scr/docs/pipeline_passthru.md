@@ -386,3 +386,9 @@ description audits pass, while obsolete-code mapping and source-level quantity
 token semantics remain separate gates. Nominal extension data may be used for
 recent-period construction; the independent policy and 2025 event gates remain
 false.
+
+The package-common anchor contains 4,199,002 rows; the source-separated raw
+panel contains 4,197,758, leaving exactly 1,244 package-common keys absent from
+the raw panel. These keys are stored in a diagnostic ZSTD Parquet anti-join with
+month, country, HS2, and HS4 summaries. They are not imputed or treated as
+zeros.
