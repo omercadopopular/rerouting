@@ -38,7 +38,7 @@
       "status": "complete"
     },
     {
-      "detail": "registered thresholds are unchanged",
+      "detail": "realized-duty correction fixes the duty-price point miss; event CI and other price/value gates remain failed",
       "specification": "raw_outcome_bridge",
       "status": "failed"
     },
@@ -58,7 +58,7 @@
       "status": "pending"
     },
     {
-      "detail": "duty fields are present; units and source semantics require review",
+      "detail": "2018 layout confirms dutiable-value versus calculated-duty semantics; cross-vintage audit remains",
       "specification": "raw_trade_duty_preservation",
       "status": "pending"
     },

@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from scr.passthru_data.bridge_diagnostics import ci_overlap, curve_metrics
+from scr.passthru_data.diagnose_pduty_bridge import duty_inclusive_unit_value
 
 
 def test_ci_overlap_identical_intervals():
@@ -37,3 +38,13 @@ def test_curve_metrics_recomputes_after_excluding_normalized_baseline():
     assert registered["n_points"] == 3
     assert sensitivity["n_points"] == 2
     assert sensitivity["rmse"] > registered["rmse"]
+
+
+def test_duty_inclusive_price_uses_calculated_duty_without_zero_filling():
+    result = duty_inclusive_unit_value(
+        pd.Series([100.0, 100.0, 100.0, None]),
+        pd.Series([10.0, 0.0, 10.0, 10.0]),
+        pd.Series([25.0, 25.0, None, 25.0]),
+    )
+    assert result.iloc[0] == 12.5
+    assert result.iloc[1:].isna().all()

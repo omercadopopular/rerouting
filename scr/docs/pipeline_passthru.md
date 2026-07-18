@@ -392,3 +392,22 @@ panel contains 4,197,758, leaving exactly 1,244 package-common keys absent from
 the raw panel. These keys are stored in a diagnostic ZSTD Parquet anti-join with
 month, country, HS2, and HS4 summaries. They are not imputed or treated as
 zeros.
+
+### 2026-07-18 duty-inclusive-price correction
+
+The paper package labels `m_pduty` as `(value + duty) / quantity`. The prior
+raw bridge instead constructed this outcome as unit value times one plus the
+package statutory tariff. The archive layout establishes that `dut_val_mo` is
+dutiable value and `cal_dut_mo` is calculated duty; the corrected diagnostic
+therefore uses `(trade_value + cal_dut_mo) / quantity` while keeping package
+treatment timing and policy regressors fixed.
+
+This correction reduces the event-study maximum duty-price gap from 3.27546 to
+2.09774 log points. The dynamic duty-price bridge now passes all registered
+metrics (correlation 0.99910, RMSE 0.08948, maximum gap 0.14298, CI overlap
+0.81289). The event duty-price curve passes correlation, RMSE, maximum-gap, and
+sign criteria but still fails CI overlap (0.71073). An exact coefficient
+decomposition shows the remaining post-treatment event gap is predominantly
+the raw pre-duty-price gap, not the realized-duty factor. The overall raw
+outcome bridge therefore remains failed, and the independent policy gate is
+unchanged.
