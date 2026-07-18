@@ -139,6 +139,12 @@ blocked even while archive-level extension validation proceeds independently.
 The package-only import benchmark is current and passes the frozen PDF gate.
 The independent extension covers every local import/export month through
 2025-12 and reconciles to raw-only staging; it contains no package policy
-variables. The aligned bridge is complete but fails five registered outcome
+variables. The aligned bridge is complete but fails three registered outcome
 comparisons. Section 301 v5 and the 2025 event remain explicitly blocked until
 the raw-outcome and independent-policy gates pass.
+
+The corrected v4 rerun reduces the remaining failures to event/value confidence
+interval overlap, event/pre-duty-price confidence interval overlap, and
+dynamic/pre-duty-price Pearson correlation plus interval overlap. The realized
+duty formula now passes both duty-price comparisons. These remain bridge-gate
+failures, not reasons to alter policy semantics.

@@ -342,3 +342,8 @@ can be extended and audited, but tariff treatment, Section 301 v5, and the
 February 2025 event study remain blocked. Native HTS descriptions are audited;
 longitudinal obsolete mappings and raw quantity-token semantics require explicit
 source evidence rather than placeholder zeros.
+
+The 2026-07-18 outcome-extension layer is explicitly separate from the frozen
+benchmark and from policy treatment. It derives pre-duty and calculated-duty
+prices from archive-native fields, preserves missing-versus-zero quantities, and
+ends at the latest local month (2025-12). It is not a policy/event-study panel.

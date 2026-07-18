@@ -411,3 +411,21 @@ decomposition shows the remaining post-treatment event gap is predominantly
 the raw pre-duty-price gap, not the realized-duty factor. The overall raw
 outcome bridge therefore remains failed, and the independent policy gate is
 unchanged.
+
+### 2026-07-18 canonical v4 bridge and raw-outcome extension
+
+The corrected v4 bridge is now the canonical diagnostic namespace. It contains
+16 valid source-separated checkpoints and uses calculated Census duty in
+`(trade_value + cal_dut_mo) / quantity`; v3 remains historical. The v4 gate
+passes all point-estimate comparisons, event and dynamic duty-inclusive price,
+and all quantity comparisons. It still fails event/value confidence-interval
+overlap, event/pre-duty-price confidence-interval overlap, and dynamic/pre-duty
+price Pearson correlation and interval overlap. No registered threshold was
+changed.
+
+The independent raw-outcome extension v1 contains 156 import partitions from
+2013-01 through 2025-12 (39,640,207 rows), with nominal value, quantity
+missing/zero flags, `dut_val_mo`, `cal_dut_mo`, and separately derived price
+fields. It contains no package-policy variables. This is validated against the
+archive-native staging partitions; ZIP-native reparse, cross-vintage
+concordance, and CPI-real gates remain pending.

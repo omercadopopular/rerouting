@@ -674,3 +674,13 @@ gates are not promoted without their own evidence.
 The exact package-common loss audit finds 1,244 keys absent from the aligned raw
 panel. This is a source-universe loss, not a tariff-rate substitution; detailed
 keys remain Parquet-only and the raw-outcome bridge gate remains failed.
+
+### 2026-07-18 policy mismatch decomposition
+
+The existing semantics-corrected discrepancy Parquet was decomposed into raw-only
+treatment, reference-only treatment, active-scope, statutory-rate,
+day-weighted-calendar, sentinel, missing-source, and extra-scope categories.
+The diagnostic is stored under
+`raw_replication_imports/policy_mismatch_decomposition_v1/`. It changes no legal
+mapping, does not impute unresolved rates, and leaves the independent policy
+gate false.
