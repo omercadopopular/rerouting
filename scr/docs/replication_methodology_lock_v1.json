@@ -1,0 +1,29 @@
+{
+  "version": "replication_methodology_lock_v1",
+  "created_at": "2026-07-18",
+  "gates": {
+    "package_import_pdf_gate": "passed",
+    "package_provenance_gate": "passed",
+    "raw_outcome_point_estimate_gate": "passed",
+    "raw_outcome_inference_gate": "failed",
+    "raw_trade_archive_gate": "pending",
+    "raw_trade_outcome_extension_gate": "pending",
+    "independent_policy_gate": "failed",
+    "section301_v5_ready": false,
+    "event_2025_ready": false
+  },
+  "outcomes": {
+    "value": "trade_value",
+    "quantity": "primary quantity with missing and zero flags",
+    "price": "trade_value / quantity",
+    "pduty": "(trade_value + cal_dut_mo) / quantity"
+  },
+  "registered_thresholds": {
+    "correlation_min": 0.95,
+    "rmse_max": 1.25,
+    "max_difference_max": 2.5,
+    "ci_overlap_min": 0.8,
+    "sign_agreement_required": true
+  },
+  "policy_calendars": ["legal_effective", "paper_compatible_nearest_month", "day_weighted_realized"]
+}

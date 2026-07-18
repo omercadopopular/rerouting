@@ -14,12 +14,16 @@
     "figure_4a_import_dynamic": "gate_passed",
     "figure_4b_export_dynamic": "blocked_missing_data",
     "independent_section301_policy": "gate_failed",
-    "raw_trade_extension_2025": "validated_nominal_archive_native"
+    "raw_trade_extension_2025": "pending_archive_native_release_validation"
   },
   "package_full_vs_common_gate": "passed",
   "package_import_pdf_gate": "passed",
   "package_provenance_gate": "passed",
+  "raw_outcome_point_estimate_gate": "passed",
+  "raw_outcome_inference_gate": "failed",
   "raw_outcome_bridge_gate": "failed",
+  "raw_trade_archive_gate": "pending",
+  "raw_trade_outcome_extension_gate": "pending",
   "raw_trade_archive_ingestion_gate": "passed",
   "raw_trade_concordance_gate": "pending",
   "raw_trade_duty_preservation_gate": "pending",
@@ -38,14 +42,19 @@
       "status": "complete"
     },
     {
-      "detail": "realized-duty correction fixes the duty-price point miss; event CI and other price/value gates remain failed",
-      "specification": "raw_outcome_bridge",
+      "detail": "v4 calculated-duty construction passes value, quantity, price, and duty-price point metrics; inference gate remains separate",
+      "specification": "raw_outcome_point_estimate",
+      "status": "passed"
+    },
+    {
+      "detail": "event/value and event/price CI overlap, plus dynamic/price correlation and CI, remain below registered thresholds",
+      "specification": "raw_outcome_inference",
       "status": "failed"
     },
     {
-      "detail": "312 archives",
+      "detail": "312 staging partitions; ZIP-native reparse pending",
       "specification": "raw_trade_archive_ingestion",
-      "status": "passed"
+      "status": "pending"
     },
     {
       "detail": "312/312 monthly comparisons",
@@ -68,8 +77,8 @@
       "status": "pending"
     },
     {
-      "detail": "nominal extension is canonical; CPI real-value build not run",
-      "specification": "raw_trade_real_values",
+      "detail": "156 archive-native raw outcome partitions built; independent ZIP/concordance/CPI gates pending",
+      "specification": "raw_trade_outcome_extension",
       "status": "pending"
     },
     {
