@@ -417,8 +417,9 @@ unchanged.
 The corrected v4 bridge is now the canonical diagnostic namespace. It contains
 16 valid source-separated checkpoints and uses calculated Census duty in
 `(trade_value + cal_dut_mo) / quantity`; v3 remains historical. The v4 gate
-passes all point-estimate comparisons, event and dynamic duty-inclusive price,
-and all quantity comparisons. It still fails event/value confidence-interval
+passes duty-inclusive-price comparisons, all quantity comparisons, and the
+registered RMSE/max criteria except for dynamic pre-duty-price Pearson
+correlation. It still fails event/value confidence-interval
 overlap, event/pre-duty-price confidence-interval overlap, and dynamic/pre-duty
 price Pearson correlation and interval overlap. No registered threshold was
 changed.

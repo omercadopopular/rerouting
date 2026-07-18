@@ -4,7 +4,7 @@
   "gates": {
     "package_import_pdf_gate": "passed",
     "package_provenance_gate": "passed",
-    "raw_outcome_point_estimate_gate": "passed",
+    "raw_outcome_point_estimate_gate": "failed",
     "raw_outcome_inference_gate": "failed",
     "raw_trade_archive_gate": "pending",
     "raw_trade_outcome_extension_gate": "pending",

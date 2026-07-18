@@ -6,7 +6,7 @@ Generated from canonical manifests on 2026-07-18.
 |---|---|---|
 | package_import_pdf | `passed` | 8 fits and frozen PDF comparison are complete |
 | package_common_sample | `complete` | 4197758 aligned import rows |
-| raw_outcome_point_estimate | `passed` | v4 realized-duty bridge passes all point-estimate comparisons; inference failures remain |
+| raw_outcome_point_estimate | `failed` | realized-duty pduty and RMSE/max metrics pass; dynamic pre-duty-price Pearson correlation remains below 0.95 |
 | raw_outcome_inference | `failed` | event/value and event/pre-duty CI overlap narrowly fail; dynamic/pre-duty Pearson and CI fail |
 | raw_trade_archive_ingestion | `pending` | staging projection is complete; independent ZIP-native reparse remains pending |
 | raw_trade_staging_reconciliation | `passed` | 312/312 monthly comparisons against archive-native staging |
