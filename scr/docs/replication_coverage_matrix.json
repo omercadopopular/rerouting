@@ -1,25 +1,83 @@
 {
-  "created_at": "2026-07-17",
-  "package_import_pdf_gate": "passed",
-  "package_provenance_gate": "passed",
-  "raw_trade_staging_projection_gate": "passed",
-  "raw_trade_archive_validation_gate": "pending",
-  "raw_trade_archive_validation_detail": "312_monthly_value_checks_passed; key_and_separate_duty_audits_pending",
-  "raw_trade_concordance_gate": "pending",
-  "raw_outcome_bridge_gate": "failed",
-  "raw_outcome_bridge_detail": "historical_natural_sample_failed; aligned_import_v2_completed_but_failed_registered_metrics",
-  "independent_policy_gate": "failed",
-  "section301_v5_ready": false,
+  "aligned_bridge_import_universe": {
+    "keys_identical": true,
+    "policy_semantics_changed": false,
+    "rows": 4197758
+  },
+  "created_at": "2026-07-18",
   "event_2025_ready": false,
-  "aligned_bridge_import_universe": {"rows": 4197758, "keys_identical": true, "policy_semantics_changed": false},
+  "independent_policy_gate": "failed",
   "items": {
+    "common_sample_bridge": "gate_failed",
+    "event_2025": "blocked_missing_data",
     "figure_2_import_event": "gate_passed",
     "figure_4a_import_dynamic": "gate_passed",
     "figure_4b_export_dynamic": "blocked_missing_data",
-    "common_sample_bridge": "gate_failed",
     "independent_section301_policy": "gate_failed",
-    "raw_trade_extension_2025": "ran_no_gate",
-    "raw_trade_extension_v2": "ran_no_gate",
-    "event_2025": "blocked_missing_data"
-  }
+    "raw_trade_extension_2025": "validated_nominal_archive_native"
+  },
+  "package_full_vs_common_gate": "passed",
+  "package_import_pdf_gate": "passed",
+  "package_provenance_gate": "passed",
+  "raw_outcome_bridge_gate": "failed",
+  "raw_trade_archive_ingestion_gate": "passed",
+  "raw_trade_concordance_gate": "pending",
+  "raw_trade_duty_preservation_gate": "pending",
+  "raw_trade_quantity_semantics_gate": "pending",
+  "raw_trade_real_value_gate": "pending",
+  "raw_trade_staging_reconciliation_gate": "passed",
+  "rows": [
+    {
+      "detail": "8 fits and frozen PDF comparison are complete",
+      "specification": "package_import_pdf",
+      "status": "passed"
+    },
+    {
+      "detail": "4197758 aligned import rows",
+      "specification": "package_common_sample",
+      "status": "complete"
+    },
+    {
+      "detail": "registered thresholds are unchanged",
+      "specification": "raw_outcome_bridge",
+      "status": "failed"
+    },
+    {
+      "detail": "312 archives",
+      "specification": "raw_trade_archive_ingestion",
+      "status": "passed"
+    },
+    {
+      "detail": "312/312 monthly comparisons",
+      "specification": "raw_trade_staging_reconciliation",
+      "status": "passed"
+    },
+    {
+      "detail": "source fixed-width quantity token audit",
+      "specification": "raw_trade_quantity_semantics",
+      "status": "pending"
+    },
+    {
+      "detail": "duty fields are present; units and source semantics require review",
+      "specification": "raw_trade_duty_preservation",
+      "status": "pending"
+    },
+    {
+      "detail": "pending_obsolete_mapping_parse",
+      "specification": "raw_trade_concordance",
+      "status": "pending"
+    },
+    {
+      "detail": "nominal extension is canonical; CPI real-value build not run",
+      "specification": "raw_trade_real_values",
+      "status": "pending"
+    },
+    {
+      "detail": "2025 ledger sources remain incomplete",
+      "specification": "independent_policy",
+      "status": "failed"
+    }
+  ],
+  "section301_v5_ready": false,
+  "version": "replication_gate_matrix_v2"
 }

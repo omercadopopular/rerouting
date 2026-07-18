@@ -8,5 +8,7 @@ def test_gate_matrix_separates_trade_and_policy_readiness():
     assert "ready_for_extension" not in payload
     assert payload["package_import_pdf_gate"] == "passed"
     assert payload["raw_outcome_bridge_gate"] == "failed"
-    assert payload["raw_trade_archive_validation_gate"] == "pending"
+    assert payload["raw_trade_archive_ingestion_gate"] == "passed"
+    assert payload["raw_trade_staging_reconciliation_gate"] == "passed"
+    assert payload["raw_trade_quantity_semantics_gate"] == "pending"
     assert payload["section301_v5_ready"] is False

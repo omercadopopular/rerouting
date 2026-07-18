@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 import argparse
 import json
+import re
 
 from .config import PipelineConfig
 from .io_utils import sha256_file, write_metadata_json
@@ -23,16 +24,37 @@ LEDGER_FIELDS = [
 ]
 
 
+def _policy_inventory_candidate(path: Path, policy_root: Path) -> tuple[bool, str | None]:
+    """Keep only reviewed policy-source candidates, never browser/cache data."""
+    parts = {part.lower() for part in path.relative_to(policy_root).parts}
+    name = path.name.lower()
+    forbidden_tokens = ("_tmp", "profile", "cache", "cookie", "selenium", "chrome", "edge", "browser")
+    if any(token in part for part in parts for token in forbidden_tokens) or any(token in name for token in forbidden_tokens):
+        return False, "temporary_or_credential_artifact"
+    if path.suffix.lower() not in {".pdf", ".zip", ".json", ".csv", ".parquet", ".txt", ".html"}:
+        return False, "unsupported_source_suffix"
+    # The annual tariff archives and the root tariff metadata are the only
+    # currently identifiable canonical local policy sources.  Other files need
+    # explicit review before they enter the release inventory.
+    relative = path.relative_to(policy_root).as_posix()
+    if relative == "tariff_annual.json" or re.fullmatch(r"annual/tariff_data_\d{4}\.zip", relative):
+        return True, None
+    return False, "unreviewed_local_policy_file"
+
+
 def prepare_policy_2025(config: PipelineConfig) -> dict[str, Any]:
     out = config.verification_dir / "policy_2025_preflight"
     out.mkdir(parents=True, exist_ok=True)
     policy_root = config.raw_dir / "policy"
     candidates: list[dict[str, Any]] = []
+    excluded: dict[str, int] = {}
     if policy_root.exists():
         for path in policy_root.rglob("*"):
-            if not path.is_file() or "_tmp_selenium" in path.parts:
+            if not path.is_file():
                 continue
-            if path.suffix.lower() not in {".pdf", ".zip", ".json", ".csv", ".parquet", ".txt", ".html"}:
+            keep, reason = _policy_inventory_candidate(path, policy_root)
+            if not keep:
+                excluded[reason or "excluded"] = excluded.get(reason or "excluded", 0) + 1
                 continue
             record = {"path": path.resolve().relative_to(config.repo_root.resolve()).as_posix(), "bytes": int(path.stat().st_size)}
             # Stream hashes for manageable local source files.  Large files are
@@ -58,7 +80,15 @@ def prepare_policy_2025(config: PipelineConfig) -> dict[str, Any]:
         "unresolved_policy_values_must_remain_null": True,
     }
     write_metadata_json(out / "policy_2025_ledger_schema.json", schema)
-    write_metadata_json(out / "policy_2025_local_source_inventory.json", {"version": VERSION, "root": policy_root.resolve().relative_to(config.repo_root.resolve()).as_posix() if policy_root.exists() else None, "files": candidates})
+    write_metadata_json(out / "policy_2025_local_source_inventory.json", {
+        "version": VERSION,
+        "root": policy_root.resolve().relative_to(config.repo_root.resolve()).as_posix() if policy_root.exists() else None,
+        "inventory_scope": "reviewed_local_policy_candidates_only",
+        "files": candidates,
+        "excluded_file_count": int(sum(excluded.values())),
+        "excluded_by_reason": excluded,
+        "credentials_and_browser_artifacts_excluded": True,
+    })
     write_metadata_json(out / "policy_2025_missing_sources.json", {"version": VERSION, "missing": missing, "status": "blocked_missing_sources"})
     prereg = "# 2025 policy/event-study preregistration (not estimated)\n\n"
     prereg += "The February 2025 event remains blocked until the versioned legal ledger passes its own product/date/rate verification gate. No unresolved rate, scope, exclusion, stacking rule, or date is imputed as zero.\n\n"
