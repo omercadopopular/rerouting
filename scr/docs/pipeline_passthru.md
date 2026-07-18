@@ -364,3 +364,25 @@ exact fit IDs and uses the correct event/dynamic horizon columns. The registered
 bridge gate remains failed: event/val and event/p fail CI overlap, event/pduty
 fails the maximum-distance threshold, dynamic/p fails correlation and CI
 overlap, and dynamic/pduty fails CI overlap. Section 301 v5 remains blocked.
+
+### 2026-07-18 bridge v3 and source-level extension audits
+
+The source-separated aligned bridge was rerun with one mode/specification held
+in memory at a time. All 16 checkpoints validate and the finalizer reports the
+registered metrics without changing thresholds. Five comparisons remain failed:
+event/value and event/price fail confidence-interval overlap, event/duty-price
+fails maximum distance and overlap, dynamic/price fails correlation and overlap,
+and dynamic/duty-price fails overlap. Section 301 v5 remains blocked.
+
+The bridge forensic audit finds package `lm_*` first differences equivalent to
+the package-derived log differences within 1e-5 (maximum numerical gap below
+2e-6). This rules out a log-variable reconstruction error as the explanation
+for the remaining price discrepancies; outcome units, raw source rounding, and
+registered CI behavior remain diagnostic questions.
+
+The archive-native extension continues to reconcile all 312 local flow-months
+to the raw-only staging projection with no policy columns. Native monthly HTS
+description audits pass, while obsolete-code mapping and source-level quantity
+token semantics remain separate gates. Nominal extension data may be used for
+recent-period construction; the independent policy and 2025 event gates remain
+false.

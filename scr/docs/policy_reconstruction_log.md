@@ -659,3 +659,14 @@ outcome masks (4,197,758 identical keys), while the old natural-sample bridge
 is retained as historical failed evidence. Archive-native extension v2 is a
 separate local ZIP build preserving source duty fields; no independent 2025
 policy or event estimate is activated.
+
+### 2026-07-18 source-separated bridge rerun
+
+The v3 bridge completed 16/16 package-common and raw-outcome checkpoints using
+separate source panels and a memory-bounded mode/specification loop. Its gate is
+still failed under the registered thresholds; no policy mapping was changed.
+The forensic `lm_*` audit passes at a 1e-5 tolerance, so dynamic price failures
+are not attributed to an algebraically different package-log construction.
+The local ZIP extension remains nominal/raw-only and archive-complete, but
+quantity-token, obsolete-concordance mapping, CPI-real, and independent-policy
+gates are not promoted without their own evidence.

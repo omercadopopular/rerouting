@@ -332,3 +332,13 @@ masks; Section 301 v5 remains blocked until its registered bridge gate passes.
 Extension v2 reads local ZIP detail members into separate nominal partitions,
 preserving raw duty fields without package policy. The 2025 policy/event layer
 remains schema, source-inventory, and preregistration only.
+
+### 2026-07-18 readiness separation
+
+The package import/PDF estimator and nominal archive-native trade panel are
+usable milestones. The source-separated 16-fit bridge is reproducible but not
+validated: five registered comparisons fail. Therefore recent raw trade data
+can be extended and audited, but tariff treatment, Section 301 v5, and the
+February 2025 event study remain blocked. Native HTS descriptions are audited;
+longitudinal obsolete mappings and raw quantity-token semantics require explicit
+source evidence rather than placeholder zeros.

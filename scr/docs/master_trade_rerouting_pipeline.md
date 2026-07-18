@@ -133,3 +133,12 @@ The package/common raw-outcome bridge has completed all 16 resumable fits but
 fails its registered CI, correlation, or maximum-distance checks for five
 specification/outcome pairs. This keeps Section 301 v5 and the 2025 event study
 blocked even while archive-level extension validation proceeds independently.
+
+### 2026-07-18 current gates
+
+The package-only import benchmark is current and passes the frozen PDF gate.
+The independent extension covers every local import/export month through
+2025-12 and reconciles to raw-only staging; it contains no package policy
+variables. The aligned bridge is complete but fails five registered outcome
+comparisons. Section 301 v5 and the 2025 event remain explicitly blocked until
+the raw-outcome and independent-policy gates pass.
