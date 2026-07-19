@@ -156,3 +156,9 @@ The original-period replication implementation is being rebuilt under a versione
 ## 2026-07-19 verification update
 
 The package-only original-horizon import benchmark is current and passes: 8/8 event/dynamic fits, 13 horizons each, maximum package/PDF difference 0.86862. The corrected CIF bridge has 16/16 resumable fits. Its point estimates pass for all outcomes/specifications; only the event duty-inclusive price interval-overlap metric fails (0.74992 versus 0.80), so the raw-outcome bridge gate remains failed while point-estimate replication is accepted as close. The independent archive-native extension covers 156 import and 156 export months through 2025-12 in 312 ZSTD Parquet partitions with zero duplicate keys and zero monthly value-reconciliation failures. Concordance, quantity-semantics, duty-unit, and CPI-real-value audits remain pending. Section 301 legal mapping remains outside tolerance and no v5 tariff sensitivity or 2025 event study is released.
+
+## 2026-07-19 locked historical import methodology
+
+The historical import replication now has three completed layers: the package estimator versus Figures 2/4a, raw Census outcomes versus package-policy common-sample estimates, and reconstructed paper-compatible Section 301 policy versus the package-policy anchor. The paper-compatible substitution grid passes all eight point-estimate comparisons; event curves are numerically identical and dynamic maximum gaps remain below 0.188 log points.
+
+This lock is deliberately narrower than a claim that final legal dates reproduce the paper. The independent final-legal schedule is a separate diagnostic and the versioned 2025 legal ledger remains a prerequisite for any new-administration event study. The next phase may reuse the estimator and raw trade schema, but must construct and verify a new official 2025 product/date/rate/exclusion/stacking ledger before estimation.

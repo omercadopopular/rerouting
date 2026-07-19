@@ -347,3 +347,18 @@ The 2026-07-18 outcome-extension layer is explicitly separate from the frozen
 benchmark and from policy treatment. It derives pre-duty and calculated-duty
 prices from archive-native fields, preserves missing-versus-zero quantities, and
 ends at the latest local month (2025-12). It is not a policy/event-study panel.
+
+### 2026-07-19 historical lock and forward boundary
+
+The original-period import estimator, raw nominal outcomes, and paper-compatible
+Section 301 schedule now pass their separate point-estimate gates. The policy
+substitution run contains 24/24 validated fits; all eight paper-compatible
+comparisons pass, with event curves identical to numerical precision and dynamic
+maximum gaps below 0.188 log points. This locks the historical Figures 2/4a
+methodology while retaining CI overlap as a secondary diagnostic.
+
+The final-legal 2018 calendar and the future 2025 ledger remain distinct. A 2025
+study may reuse the locked estimator, native monthly trade schema, and legal-ledger
+schema, but must not reuse validation-derived 2018 proposal/parser/concordance
+adjustments. CPI inputs remain available for later real-value work but are not
+required for the nominal historical replication.

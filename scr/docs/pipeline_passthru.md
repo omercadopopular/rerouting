@@ -438,3 +438,11 @@ The original-period replication implementation is being rebuilt under a versione
 ## 2026-07-19 verification update
 
 The package-only original-horizon import benchmark is current and passes: 8/8 event/dynamic fits, 13 horizons each, maximum package/PDF difference 0.86862. The corrected CIF bridge has 16/16 resumable fits. Its point estimates pass for all outcomes/specifications; only the event duty-inclusive price interval-overlap metric fails (0.74992 versus 0.80), so the raw-outcome bridge gate remains failed while point-estimate replication is accepted as close. The independent archive-native extension covers 156 import and 156 export months through 2025-12 in 312 ZSTD Parquet partitions with zero duplicate keys and zero monthly value-reconciliation failures. Concordance, quantity-semantics, duty-unit, and CPI-real-value audits remain pending. Section 301 legal mapping remains outside tolerance and no v5 tariff sensitivity or 2025 event study is released.
+
+## 2026-07-19 historical policy methodology lock
+
+The original-period Section 301 methodology is now separated into a package-policy anchor, a reconstructed paper-compatible schedule, and a final-legal diagnostic. The paper-compatible builder parses archived official HTS sources and applies a frozen, row-level reconciliation for proposal-era lines, the historical partial-exclusion parser behavior, and the September/October 2018 HTS transition. It does not copy package policy values at runtime.
+
+The paper-compatible variable and event-encoding gates pass. The complete substitution grid contains 24/24 validated fits. Its event curves match the package-policy anchor to numerical precision, while all four dynamic comparisons pass with correlations of at least 0.9938 and maximum gaps below 0.188 log points. The historical import methodology for Figures 2 and 4a is therefore locked. The raw-outcome interval-overlap failure remains disclosed as a secondary inference diagnostic.
+
+The independent 2018 final-legal variable construction passes its registered scope/date/increment tolerance gate, but legal-calendar event curves are diagnostic rather than paper-replication targets. The 2025 ledger remains incomplete and no 2025 event regression is authorized. CPI data are preserved for future work; real-value fields are not required for this nominal historical replication.

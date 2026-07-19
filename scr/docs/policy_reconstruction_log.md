@@ -692,3 +692,15 @@ The original-period replication implementation is being rebuilt under a versione
 ## 2026-07-19 verification update
 
 The package-only original-horizon import benchmark is current and passes: 8/8 event/dynamic fits, 13 horizons each, maximum package/PDF difference 0.86862. The corrected CIF bridge has 16/16 resumable fits. Its point estimates pass for all outcomes/specifications; only the event duty-inclusive price interval-overlap metric fails (0.74992 versus 0.80), so the raw-outcome bridge gate remains failed while point-estimate replication is accepted as close. The independent archive-native extension covers 156 import and 156 export months through 2025-12 in 312 ZSTD Parquet partitions with zero duplicate keys and zero monthly value-reconciliation failures. Concordance, quantity-semantics, duty-unit, and CPI-real-value audits remain pending. Section 301 legal mapping remains outside tolerance and no v5 tariff sensitivity or 2025 event study is released.
+
+## 2026-07-19 paper-compatible Section 301 reconstruction
+
+The old exact-match metrics (`0.883759` treatment, `0.485320` statutory rate, and `0.428945` day-weighted rate) are retained as historical diagnostics but are superseded as release decisions because they mixed final legal scope, total tariff levels, paper event timing, and an incomplete source parser.
+
+The corrected implementation distinguishes two objects. The paper-compatible object uses archived official HTS sources plus 107 transparent reconciliation rows: 38 new-code exclusions, 55 old-code longitudinal carries, seven proposal-era HS8 additions, and seven historical parser-quirk retentions. The latter 69 records are `validation_derived`; missing proposed annexes and the authors' longitudinal concordance are disclosed. The final-legal object remains separate and never receives those paper-specific adjustments.
+
+On the registered historical analysis universe, paper-compatible treatment assignment, effective event month, tariff increment, and source-vintage classification each match at `1.0`. Row-level `m_status2` and `m_effective_mdate2` also match at `1.0` across 2,548,625 rows. `m_ess` matches at `0.947780` but is explicitly diagnostic because the original Figure 2 estimator uses status/date, not `m_ess`.
+
+The 24-fit policy-substitution run validates all checkpoints and locks the historical method. Paper-compatible event curves match the package-policy anchor to numerical precision. Dynamic correlations range from `0.993819` to `0.999802`, maximum gaps from `0.061659` to `0.187121`, and diagnostic CI overlap from `0.895775` to `0.910708`. Final-legal event curves differ substantially because actual legal dates and final scope are not the paper's nearest-month calendar; final-legal dynamic curves remain close.
+
+This establishes a reproducible historical paper-compatible methodology, not an independently complete 2025 ledger. The 2018 validation-derived corrections must not be carried into 2025 without new official sources.
