@@ -1,4 +1,4 @@
-﻿"""Trade data ingestion for passthrough rebuilds using official Census bulk archives."""
+"""Trade data ingestion for passthrough rebuilds using official Census bulk archives."""
 
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ FLOW_SPECS = {
         "concord_member": "CONCORD.TXT",
         "country_colspecs": [(0, 4), (11, 61)],
         "country_names": ["cty_code", "cty_name"],
-        "detail_colspecs": [(0, 10), (10, 14), (22, 26), (26, 28), (148, 163), (178, 193), (88, 103), (103, 118)],
-        "detail_names": ["hs10", "cty_code", "year", "month", "quantity", "trade_value", "dut_val_mo", "cal_dut_mo"],
+        "detail_colspecs": [(0, 10), (10, 14), (22, 26), (26, 28), (148, 163), (178, 193), (208, 223), (88, 103), (103, 118)],
+        "detail_names": ["hs10", "cty_code", "year", "month", "gen_qy1_mo", "gen_val_mo", "gen_cif_mo", "dut_val_mo", "cal_dut_mo"],
     },
     "exports": {
         "page": "https://www.census.gov/foreign-trade/data/EXDB.html",
@@ -162,10 +162,13 @@ def _standardize_trade_frame(raw: pd.DataFrame, flow: str, source_type: str, sou
         "CTY_NAME": "partner_name",
         "YEAR": "year",
         "MONTH": "month",
-        "GEN_VAL_MO": "trade_value",
+        "GEN_VAL_MO": "gen_val_mo",
+        "GEN_CIF_MO": "gen_cif_mo",
+        "GEN_QY1_MO": "gen_qy1_mo",
+        "DUT_VAL_MO": "dut_val_mo",
+        "CAL_DUT_MO": "cal_dut_mo",
         "ALL_VAL_MO": "trade_value",
         "EXP_VAL_MO": "trade_value",
-        "GEN_QY1_MO": "quantity",
         "ALL_QY1_MO": "quantity",
         "EXP_QY1_MO": "quantity",
     }
@@ -175,8 +178,12 @@ def _standardize_trade_frame(raw: pd.DataFrame, flow: str, source_type: str, sou
     out["partner_name"] = out["partner_name"].map(normalize_country_name)
     out["year"] = pd.to_numeric(out["year"], errors="coerce").astype("Int64")
     out["month"] = pd.to_numeric(out["month"], errors="coerce").astype("Int64")
-    out["trade_value"] = pd.to_numeric(out["trade_value"], errors="coerce")
-    out["quantity"] = pd.to_numeric(out["quantity"], errors="coerce")
+    for column in ("gen_val_mo", "gen_cif_mo", "gen_qy1_mo", "dut_val_mo", "cal_dut_mo", "trade_value", "quantity"):
+        if column in out.columns:
+            out[column] = pd.to_numeric(out[column], errors="coerce")
+    if flow == "imports":
+        out["trade_value"] = out["gen_val_mo"]
+        out["quantity"] = out["gen_qy1_mo"]
     out = out.dropna(subset=["hs10", "partner_code", "year", "month"])
     out["period"] = [f"{int(y):04d}-{int(m):02d}" for y, m in zip(out["year"], out["month"])]
     out["mdate"] = pd.to_datetime(out["period"] + "-01")
@@ -185,7 +192,6 @@ def _standardize_trade_frame(raw: pd.DataFrame, flow: str, source_type: str, sou
     out["source_file"] = str(source_file)
     out = add_hierarchy_codes(out, "hs10")
     return out
-
 
 def _iter_fixed_width_chunks(zip_path: Path, member: str, colspecs: list[tuple[int, int]], names: list[str], chunksize: int) -> Any:
     archive = zipfile.ZipFile(zip_path)
@@ -226,22 +232,29 @@ def _parse_trade_detail(zip_path: Path, flow: str) -> pd.DataFrame:
     spec = FLOW_SPECS[flow]
     chunks = _iter_fixed_width_chunks(zip_path, spec["detail_member"], spec["detail_colspecs"], spec["detail_names"], chunksize=250_000)
     grouped_chunks: list[pd.DataFrame] = []
+    numeric_fields = ["gen_qy1_mo", "gen_val_mo", "gen_cif_mo", "dut_val_mo", "cal_dut_mo"]
+    if flow != "imports":
+        numeric_fields = ["quantity", "trade_value"]
     for chunk in chunks:
         chunk["hs10"] = chunk["hs10"].map(lambda value: normalize_hs_code(value, 10))
         chunk["cty_code"] = chunk["cty_code"].astype(str).str.zfill(4)
         chunk["year"] = pd.to_numeric(chunk["year"], errors="coerce").astype("Int64")
         chunk["month"] = pd.to_numeric(chunk["month"], errors="coerce").astype("Int64")
-        chunk["quantity"] = pd.to_numeric(chunk["quantity"], errors="coerce")
-        chunk["trade_value"] = pd.to_numeric(chunk["trade_value"], errors="coerce")
-        grouped = chunk.groupby(["cty_code", "hs10", "year", "month"], as_index=False)[["quantity", "trade_value"]].sum()
+        for column in numeric_fields:
+            chunk[column] = pd.to_numeric(chunk[column], errors="coerce")
+        grouped = chunk.groupby(["cty_code", "hs10", "year", "month"], as_index=False)[numeric_fields].sum(min_count=1)
         grouped_chunks.append(grouped)
     detail = pd.concat(grouped_chunks, ignore_index=True)
-    detail = detail.groupby(["cty_code", "hs10", "year", "month"], as_index=False)[["quantity", "trade_value"]].sum()
+    detail = detail.groupby(["cty_code", "hs10", "year", "month"], as_index=False)[numeric_fields].sum(min_count=1)
+    if flow == "imports":
+        detail["quantity"] = detail["gen_qy1_mo"]
+        detail["trade_value"] = detail["gen_val_mo"]
+        detail["quantity_missing"] = detail["gen_qy1_mo"].isna()
+        detail["quantity_zero"] = detail["gen_qy1_mo"].eq(0)
     detail["period"] = [f"{int(y):04d}-{int(m):02d}" for y, m in zip(detail["year"], detail["month"])]
     detail["mdate"] = pd.to_datetime(detail["period"] + "-01")
     detail["flow"] = flow
     return add_hierarchy_codes(detail, "hs10")
-
 
 def build_trade_inventory(config: PipelineConfig) -> dict[str, Any]:
     periods = iter_months(config.start_period, config.end_period)
@@ -339,11 +352,21 @@ def run_trade_download(config: PipelineConfig) -> dict[str, Any]:
         if country_lookup is None:
             raise RuntimeError(f"Country lookup could not be built for {flow}.")
         panel = pd.concat(parsed_frames, ignore_index=True)
-        panel = panel.groupby(["cty_code", "hs10", "year", "month", "period", "mdate", "flow", "hs8", "hs6", "hs4", "hs2"], as_index=False)[["quantity", "trade_value"]].sum()
+        numeric_fields = ["gen_qy1_mo", "gen_val_mo", "gen_cif_mo", "dut_val_mo", "cal_dut_mo"] if flow == "imports" else ["quantity", "trade_value"]
+        panel = panel.groupby(["cty_code", "hs10", "year", "month", "period", "mdate", "flow", "hs8", "hs6", "hs4", "hs2"], as_index=False)[numeric_fields].sum(min_count=1)
+        if flow == "imports":
+            panel["quantity"] = panel["gen_qy1_mo"]
+            panel["trade_value"] = panel["gen_val_mo"]
+            panel["quantity_missing"] = panel["gen_qy1_mo"].isna()
+            panel["quantity_zero"] = panel["gen_qy1_mo"].eq(0)
         panel = panel.merge(country_lookup, on="cty_code", how="left")
         panel = panel.rename(columns={"cty_name": "partner_name", "cty_code": "partner_code"})
-        panel = panel[["flow", "partner_code", "partner_name", "hs10", "hs8", "hs6", "hs4", "hs2", "year", "month", "period", "mdate", "trade_value", "quantity"]].sort_values(["partner_code", "hs10", "year", "month"]).reset_index(drop=True)
-
+        output_columns = ["flow", "partner_code", "partner_name", "hs10", "hs8", "hs6", "hs4", "hs2", "year", "month", "period", "mdate"]
+        if flow == "imports":
+            output_columns += ["gen_val_mo", "gen_cif_mo", "gen_qy1_mo", "dut_val_mo", "cal_dut_mo", "trade_value", "quantity", "quantity_missing", "quantity_zero"]
+        else:
+            output_columns += ["trade_value", "quantity"]
+        panel = panel[output_columns].sort_values(["partner_code", "hs10", "year", "month"]).reset_index(drop=True)
         staging_path = config.staging_dir / f"{flow}_trade_staging.parquet"
         write_parquet(panel, staging_path, overwrite=True)
         write_data_dictionary(panel, config.staging_dir / f"{flow}_trade_staging.dictionary.json", key_columns=["partner_code", "hs10", "year", "month"])

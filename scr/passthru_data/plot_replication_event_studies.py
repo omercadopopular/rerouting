@@ -17,7 +17,7 @@ from .config import PipelineConfig
 from .io_utils import sha256_file, write_metadata_json
 
 
-VERSION = "replication_event_study_overlay_v1"
+VERSION = "replication_event_study_overlay_v2_cif_stata_calendar"
 OUTCOMES = ("val", "q1", "p", "pduty")
 OUTCOME_LABELS = {
     "val": "Import value",
@@ -62,7 +62,7 @@ def _plot_spec(
         reference_low = package_full["reference_conf_low"].astype(float).to_numpy()
         reference_high = package_full["reference_conf_high"].astype(float).to_numpy()
         axis.fill_between(x, reference_low, reference_high, color="0.65", alpha=0.20, linewidth=0)
-        axis.plot(x, reference, color="black", marker="o", markersize=3.5, linewidth=1.8, label="Paper PDF reference")
+        axis.plot(x, reference, color="black", marker="o", markersize=3.5, linewidth=1.8, label="Replication-package PDF output")
 
         axis.plot(
             x,
@@ -114,7 +114,7 @@ def _plot_spec(
         0.5,
         0.012,
         (
-            "Paper reference is the frozen local vector extraction; shaded regions show paper and raw-outcome confidence intervals. "
+            "Paper reference is the frozen replication-package PDF extraction; shaded regions show paper and raw-outcome confidence intervals. "
             + ("Duty-inclusive raw price uses Census calculated duty." if realized_pduty else "")
         ),
         ha="center",
@@ -131,18 +131,24 @@ def _plot_spec(
 def plot_replication_event_studies(config: PipelineConfig) -> dict[str, Any]:
     root = config.verification_dir / "trade_regressions" / "package_benchmark_v5"
     comparison_path = root / "package_pdf_comparison.parquet"
+    v5_bridge_path = root / "common_sample_v5_cif" / "bridge_resumable_v5" / "bridge_coefficients.parquet"
     v4_bridge_path = root / "common_sample_v4" / "bridge_resumable" / "bridge_coefficients.parquet"
     v3_bridge_path = root / "common_sample_v3" / "bridge_resumable" / "bridge_coefficients.parquet"
-    bridge_path = v4_bridge_path if v4_bridge_path.exists() else v3_bridge_path
+    bridge_path = v5_bridge_path if v5_bridge_path.exists() else (v4_bridge_path if v4_bridge_path.exists() else v3_bridge_path)
     if not comparison_path.exists() or not bridge_path.exists():
         raise FileNotFoundError(f"Missing package comparison or bridge coefficients: {comparison_path}, {bridge_path}")
     comparison = pd.read_parquet(comparison_path)
     bridge = pd.read_parquet(bridge_path)
+    v5_root = root / "common_sample_v5_cif" / "bridge_resumable_v5" / "raw_outcomes_package_policy"
     v4_root = root / "common_sample_v4" / "bridge_resumable" / "raw_outcomes_package_policy"
     v3_root = root / "common_sample_v3" / "pduty_diagnosis" / "fits"
     v4_pduty_paths = {spec: v4_root / spec / "pduty" / "coefficients.parquet" for spec in ("event", "dynamic")}
     v3_pduty_paths = {spec: v3_root / spec / "coefficients.parquet" for spec in ("event", "dynamic")}
-    if bridge_path == v4_bridge_path and all(path.exists() for path in v4_pduty_paths.values()):
+    v5_pduty_paths = {spec: v5_root / spec / "pduty" / "coefficients.parquet" for spec in ("event", "dynamic")}
+    if bridge_path == v5_bridge_path and all(path.exists() for path in v5_pduty_paths.values()):
+        pduty_fit_paths = v5_pduty_paths
+        realized_pduty = True
+    elif bridge_path == v4_bridge_path and all(path.exists() for path in v4_pduty_paths.values()):
         pduty_fit_paths = v4_pduty_paths
         realized_pduty = True
     else:
@@ -170,7 +176,7 @@ def plot_replication_event_studies(config: PipelineConfig) -> dict[str, Any]:
         "package_comparison_sha256": sha256_file(comparison_path),
         "bridge_coefficients_path": _relative(config, bridge_path),
         "bridge_coefficients_sha256": sha256_file(bridge_path),
-        "bridge_version": "common_sample_v4_realized_calculated_duty" if bridge_path == v4_bridge_path else "common_sample_v3_historical",
+        "bridge_version": "common_sample_v5_cif_calculated_duty_stata_calendar" if bridge_path == v5_bridge_path else ("common_sample_v4_historical" if bridge_path == v4_bridge_path else "common_sample_v3_historical"),
         "event_figure_png": _relative(config, event_path),
         "event_figure_pdf": _relative(config, event_path.with_suffix(".pdf")),
         "dynamic_figure_png": _relative(config, dynamic_path),
@@ -187,7 +193,7 @@ def plot_replication_event_studies(config: PipelineConfig) -> dict[str, Any]:
             spec: _relative(config, path) for spec, path in pduty_fit_paths.items() if path.exists()
         },
         "pduty_fit_sha256": pduty_fingerprints,
-        "pduty_outcome_formula": "(trade_value + cal_dut_mo) / quantity" if realized_pduty else "legacy statutory multiplier",
+        "pduty_outcome_formula": "(gen_cif_mo + cal_dut_mo) / gen_qy1_mo" if realized_pduty else "legacy statutory multiplier",
         "status": "complete",
     }
     write_metadata_json(output / "replication_event_study_overlay_manifest.json", manifest)

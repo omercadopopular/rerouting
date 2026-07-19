@@ -115,11 +115,19 @@ def build_pdf_reference(config: PipelineConfig) -> dict[str, Any]:
         raw = pd.read_csv(source)
         columns = ["flow", "spec", "outcome", "horizon", "reference_value", "reference_conf_low", "reference_conf_high", "reference_source"]
         reference = raw.loc[(raw["flow"] == "imports") & raw["spec"].isin(["event", "dynamic"]), columns].copy()
-        # The comparison extractor predates the portable-manifest contract and
-        # can contain an absolute path from another workstation.  The frozen
-        # reference is identified by its extraction provenance, not by that
-        # machine-local path.
-        reference["reference_source"] = "existing_local_vector_extraction"
+        geometry_candidates = [reference_dir / "pdf_geometry_reference_corrected.parquet", package_benchmark_dir(config) / "calendar_exact_dynamic_diagnostic" / "pdf_geometry_reference_corrected.parquet"]
+        geometry_path = next((candidate for candidate in geometry_candidates if candidate.exists()), geometry_candidates[0])
+        geometry_used = False
+        if geometry_path.exists():
+            geometry = read_table(geometry_path)
+            geometry = geometry.loc[(geometry["flow"] == "imports") & (geometry["spec"] == "dynamic"), ["flow", "spec", "outcome", "horizon", "reference_value", "reference_source"]].copy()
+            geometry["reference_conf_low"] = pd.NA
+            geometry["reference_conf_high"] = pd.NA
+            geometry["reference_source"] = "corrected_local_pdf_geometry_extraction"
+            event_reference = reference.loc[reference["spec"] == "event"].copy()
+            reference = pd.concat([event_reference, geometry], ignore_index=True)
+            geometry_used = True
+        reference["reference_source"] = reference["reference_source"].fillna("existing_local_vector_extraction")
         counts = reference.groupby(["spec", "outcome"], dropna=False).size().to_dict()
         observed = set(counts)
         if observed != required or any(counts[key] != 13 for key in required):
@@ -144,7 +152,9 @@ def build_pdf_reference(config: PipelineConfig) -> dict[str, Any]:
         "reference_path": _repo_relative(config, reference_path),
         "reference_rows": int(len(reference)),
         "horizons_per_import_spec_outcome": 13 if status == "passed" else None,
-        "extraction_provenance": "existing_local_vector_extraction",
+        "extraction_provenance": "corrected_local_pdf_geometry_extraction" if geometry_used else "existing_local_vector_extraction",
+        "dynamic_geometry_reference_used": geometry_used,
+        "dynamic_geometry_reference_sha256": _fingerprint(geometry_path) if geometry_used else None,
         "reextracted_in_this_invocation": False,
         "missing_export_fig_04b": True,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),

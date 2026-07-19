@@ -109,4 +109,4 @@ def test_plotter_materializes_both_specs_and_discloses_policy_source(tmp_path: P
     manifest = json.loads((root / "figures" / "replication_event_study_overlay_manifest.json").read_text())
     assert manifest["series"][-1] == "raw_outcomes_package_policy"
     assert manifest["independent_raw_policy_included"] is False
-    assert manifest["pduty_outcome_formula"] == "(trade_value + cal_dut_mo) / quantity"
+    assert manifest["pduty_outcome_formula"] == "(gen_cif_mo + cal_dut_mo) / gen_qy1_mo"

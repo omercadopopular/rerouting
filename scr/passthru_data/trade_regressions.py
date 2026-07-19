@@ -29,6 +29,34 @@ from .trade_regression_common import (
     workhorse_output_path,
 )
 
+STATA_CALENDAR_SEMANTICS_VERSION = "stata_monthly_dfl_v1"
+
+
+def _validate_stata_panel(frame: pd.DataFrame) -> pd.DataFrame:
+    """Validate the unique id-month panel required by Stata tsset."""
+    required = {"id", "mdate_index"}
+    missing = required.difference(frame.columns)
+    if missing:
+        raise ValueError(f"Stata panel is missing required columns: {sorted(missing)}")
+    if frame[["id", "mdate_index"]].isna().any().any():
+        raise ValueError("Stata panel id and mdate_index must be nonmissing")
+    if frame[["id", "mdate_index"]].duplicated().any():
+        raise ValueError("Stata panel contains duplicate id-mdate_index rows")
+    return frame.sort_values(["id", "mdate_index"], kind="mergesort").reset_index(drop=True)
+
+
+def _stata_exact_lookup(frame: pd.DataFrame, value_column: str, offset: int) -> pd.Series:
+    """Return a value at exactly t+offset, matching Stata F/L semantics."""
+    lookup = frame[["id", "mdate_index", value_column]].rename(columns={value_column: "_target"})
+    target = frame[["id", "mdate_index"]].copy()
+    target["mdate_index"] = target["mdate_index"] + int(offset)
+    return target.merge(lookup, on=["id", "mdate_index"], how="left", sort=False)["_target"].reset_index(drop=True)
+
+
+def _stata_first_difference(frame: pd.DataFrame, value_column: str) -> pd.Series:
+    previous = _stata_exact_lookup(frame, value_column, -1)
+    return pd.to_numeric(frame[value_column], errors="coerce") - pd.to_numeric(previous, errors="coerce")
+
 
 @dataclass(frozen=True)
 class RegressionResult:
@@ -163,25 +191,32 @@ def _run_event_study_one(config: PipelineConfig, flow: str, outcome: str, frame:
     return RegressionResult(flow=flow, spec="event", outcome=outcome, frame=result, nobs=int(getattr(fit, "_N")), r2=float(getattr(fit, "_r2")), source_mode=source_mode, input_path=input_path)
 
 
-def _prepare_dynamic(flow: str, frame: pd.DataFrame) -> pd.DataFrame:
+def _prepare_dynamic(flow: str, frame: pd.DataFrame, *, package_logs: bool | None = None) -> pd.DataFrame:
     prefix = WORKHORSE_SPECS[flow]["prefix"]
     out = _prepare_base_frame(frame, flow)
     out = out.loc[out["year"] >= 2017].copy()
-    out = out.sort_values(["id", "mdate_index"]).reset_index(drop=True)
+    out = _validate_stata_panel(out)
     tariff_col = f"{prefix}_stattariff2"
     out["lstattf"] = np.log1p(out[tariff_col])
-    out["x"] = out.groupby("id", sort=False)["lstattf"].diff()
+    out["x"] = _stata_first_difference(out, "lstattf")
     for outcome in REGRESSION_OUTCOMES:
         ycol = f"{prefix}_{outcome}"
-        valid = out[ycol] > 0
-        out[f"log_{outcome}"] = np.where(valid, np.log(out[ycol] * 1_000_000.0), np.nan)
-        out[f"dl_{outcome}"] = out.groupby("id", sort=False)[f"log_{outcome}"].diff()
+        log_col = f"lm_{outcome}"
+        valid = pd.to_numeric(out[ycol], errors="coerce") > 0
+        use_package = package_logs if package_logs is not None else (log_col in out.columns)
+        if use_package:
+            if log_col not in out.columns:
+                raise ValueError(f"Package dynamic frame lacks Stata log variable {log_col}")
+            out[f"log_{outcome}"] = pd.to_numeric(out[log_col], errors="coerce").where(valid)
+        else:
+            out[f"log_{outcome}"] = np.log(pd.to_numeric(out[ycol], errors="coerce")).where(valid)
+        out[f"dl_{outcome}"] = _stata_first_difference(out, f"log_{outcome}")
     for lead in range(1, 7):
-        out[f"F{lead}x"] = out.groupby("id", sort=False)["x"].shift(-lead)
+        out[f"F{lead}x"] = _stata_exact_lookup(out, "x", lead)
         out[f"DUMMYF{lead}"] = out[f"F{lead}x"].isna().astype(int)
         out[f"F{lead}x"] = out[f"F{lead}x"].fillna(0.0)
     for lag in range(1, 7):
-        out[f"L{lag}x"] = out.groupby("id", sort=False)["x"].shift(lag)
+        out[f"L{lag}x"] = _stata_exact_lookup(out, "x", -lag)
         out[f"DUMMYL{lag}"] = out[f"L{lag}x"].isna().astype(int)
         out[f"L{lag}x"] = out[f"L{lag}x"].fillna(0.0)
     return out

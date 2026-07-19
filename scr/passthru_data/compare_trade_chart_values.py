@@ -13,8 +13,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pypdf import PdfReader
-from pypdf.generic import ContentStream
+try:
+    from pypdf import PdfReader
+    from pypdf.generic import ContentStream
+except ModuleNotFoundError:
+    PdfReader = None
+    ContentStream = None
 
 CURRENT_DIR = Path(__file__).resolve().parent
 SCR_DIR = CURRENT_DIR.parent
@@ -75,6 +79,8 @@ def _extract_text_items(page) -> list[TextItem]:
 
 
 def _extract_page_paths(reader: PdfReader, page) -> list[PathItem]:
+    if PdfReader is None or ContentStream is None:
+        raise RuntimeError("PDF extraction blocked: pypdf is not installed locally")
     content = ContentStream(page.get_contents(), reader)
     state: dict[str, tuple[float, ...] | None] = {"RG": None, "rg": None, "w": None}
     path_ops: list[tuple[str, list[float]]] = []
@@ -172,6 +178,40 @@ def _y_axis_slope(y_labels: pd.DataFrame) -> float:
     return float(coeff[0])
 
 
+def _numeric_y_labels(text_df: pd.DataFrame, subplot: dict[str, str], x_left: float, point_ys: list[float]) -> pd.DataFrame:
+    """Select numeric labels geometrically inside the subplot y-span."""
+    y_min = min(point_ys) - 15.0
+    y_max = max(point_ys) + 15.0
+    candidates = text_df.loc[
+        (text_df["row"] == subplot["row"])
+        & (text_df["col"] == subplot["col"])
+        & (text_df["x"] < float(x_left) - 40.0)
+        & (text_df["y"] >= y_min)
+        & (text_df["y"] <= y_max)
+    ].copy()
+    rows = []
+    for _, item in candidates.iterrows():
+        try:
+            rows.append({"value": float(item["text"]), "y": float(item["y"])})
+        except (TypeError, ValueError):
+            continue
+    labels = pd.DataFrame(rows).drop_duplicates()
+    if len(labels) < 2:
+        raise ValueError("Could not identify at least two geometric y-axis tick labels")
+    return labels.sort_values("y").reset_index(drop=True)
+
+
+def _axis_fit(y_labels: pd.DataFrame) -> tuple[float, float, float, float]:
+    """Return slope, intercept, R2, and maximum tick residual."""
+    x = y_labels["y"].to_numpy(dtype=float)
+    y = y_labels["value"].to_numpy(dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+    fitted = slope * x + intercept
+    residual = y - fitted
+    ss_tot = float(((y - y.mean()) ** 2).sum())
+    r2 = 1.0 if ss_tot == 0 else 1.0 - float((residual ** 2).sum()) / ss_tot
+    return float(slope), float(intercept), float(r2), float(np.max(np.abs(residual)))
+
 def _interp_y(points: list[tuple[float, float]], x_value: float) -> float:
     points = sorted(points)
     xs = np.array([point[0] for point in points], dtype=float)
@@ -248,19 +288,12 @@ def _extract_event_reference(config: PipelineConfig, flow: str) -> pd.DataFrame:
         cis = ci_df.loc[(ci_df["row"] == subplot["row"]) & (ci_df["col"] == subplot["col"])].sort_values("x").reset_index(drop=True)
         if len(cis) != 13:
             raise ValueError(f"Expected 13 event-study CI spikes for {flow} {outcome}, found {len(cis)}.")
-        y_label_candidates = text_df.loc[
-            (text_df["row"] == subplot["row"])
-            & (text_df["col"] == subplot["col"])
-            & (text_df["x"] < pts["x"].min() - 300)
-        ].copy()
-        y_values = []
-        for _, item in y_label_candidates.iterrows():
-            try:
-                y_values.append({"value": float(item["text"]), "y": float(item["y"])})
-            except ValueError:
-                continue
-        y_labels = pd.DataFrame(y_values).drop_duplicates().sort_values("y")
-        slope = _y_axis_slope(y_labels)
+        y_labels = _numeric_y_labels(
+            text_df, subplot, float(pts["x"].min()), pts["y"].astype(float).tolist()
+        )
+        slope, intercept, axis_r2, axis_residual = _axis_fit(y_labels)
+        if axis_r2 < 0.999999 or axis_residual > 0.01:
+            raise ValueError(f"Invalid event PDF axis calibration: R2={axis_r2}, residual={axis_residual}")
         zero_y = float(zero_df.loc[(zero_df["row"] == subplot["row"]) & (zero_df["col"] == subplot["col"]), "y"].mode().iloc[0])
         for idx, point in pts.iterrows():
             ci_row = cis.iloc[idx]
@@ -327,19 +360,12 @@ def _extract_dynamic_reference_imports(config: PipelineConfig) -> pd.DataFrame:
         if len(line_row) != 1:
             raise ValueError(f"Expected one dynamic polyline for imports {outcome}, found {len(line_row)}.")
         points = sorted(line_row.iloc[0]["points"])
-        y_label_candidates = text_df.loc[
-            (text_df["row"] == subplot["row"])
-            & (text_df["col"] == subplot["col"])
-            & (text_df["x"] < min(x for x, _ in points) - 200)
-        ].copy()
-        y_values = []
-        for _, item in y_label_candidates.iterrows():
-            try:
-                y_values.append({"value": float(item["text"]), "y": float(item["y"])})
-            except ValueError:
-                continue
-        y_labels = pd.DataFrame(y_values).drop_duplicates().sort_values("y")
-        slope = _y_axis_slope(y_labels)
+        y_labels = _numeric_y_labels(
+            text_df, subplot, min(x for x, _ in points), [y for _, y in points]
+        )
+        slope, intercept, axis_r2, axis_residual = _axis_fit(y_labels)
+        if axis_r2 < 0.999999 or axis_residual > 0.01:
+            raise ValueError(f"Invalid dynamic PDF axis calibration: R2={axis_r2}, residual={axis_residual}")
         zero_y = float(zero_df.loc[(zero_df["row"] == subplot["row"]) & (zero_df["col"] == subplot["col"]), "y"].mode().iloc[0])
         x_targets = [x for x, _ in points]
         subplot_segments = band_df.loc[(band_df["row"] == subplot["row"]) & (band_df["col"] == subplot["col"])].copy()
