@@ -72,3 +72,17 @@ a separately labeled derived field with a vintage, mapping direction, and loss
 audit. Nominal values remain canonical; CPI-adjusted fields are separate and may
 be null when CPI is unavailable. Every partition is ZSTD Parquet with source
 archive/member/hash provenance and deterministic validation hashes.
+
+## 2026-07-18 methodology-lock v2 correction
+
+The original-period replication implementation is being rebuilt under a versioned methodology namespace. Three defects are now treated as invalidating the prior canonical comparisons: raw imports used GEN_VAL_MO instead of GEN_CIF_MO; Python dynamic differences and leads/lags crossed missing calendar months; and the Figure 4a vector extractor admitted the x-axis label -6 into the y-axis calibration. The corrected method uses CIF plus calculated duty for raw outcomes, exact Stata monthly-calendar operators, and independently validated PDF geometry. Historical outputs remain diagnostic and are not promoted by copying coefficients. Independent Section 301 policy matching and the 2025 event remain separate, unresolved gates.
+
+## 2026-07-19 evidence lock
+
+The corrected package benchmark was rerun under the current estimator and is now complete: 8/8 checkpoints, 13 horizons per fit, and a maximum absolute package/PDF difference of 0.86862 (registered limit 1.10). The package source is the corrected HS10-normalized cache with SHA-256 `2da11927c11b19f2753bff983d8115332dd352cadf0bbb94d4c45e8b211411f7`.
+
+The CIF-based bridge was rebuilt and all 16 fits checkpointed. Point estimates are close for every pair: event value, quantity, and pre-duty price pass all registered numeric and sign gates; dynamic value, quantity, pre-duty price, and duty-inclusive price also pass. Event duty-inclusive price has correlation 0.99855, RMSE 0.98936, and maximum difference 1.85322, but interval overlap 0.74992, so the bridge remains failed only on its registered inference metric. This is not a point-estimate failure. Section 301 v5 empirical sensitivity is therefore still blocked by the unchanged bridge gate.
+
+The archive-native extension now covers all 156 import and 156 export months (2013-01 through 2025-12), with 312 ZSTD Parquet partitions, zero duplicate canonical keys, and zero monthly value-reconciliation failures. The extension is independent of package policy. Quantity semantics, native HTS-vintage concordances, and CPI real-value fields remain separate pending audits.
+
+The independent policy gate remains false: treatment match 0.8837592895, statutory-rate match 0.4853203009, and day-weighted-rate match 0.4289451691. No Section 301 v5 estimates or 2025 event study are released by this evidence lock.

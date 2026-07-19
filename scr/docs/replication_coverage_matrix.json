@@ -4,7 +4,7 @@
     "policy_semantics_changed": false,
     "rows": 4197758
   },
-  "created_at": "2026-07-18",
+  "created_at": "2026-07-19",
   "event_2025_ready": false,
   "independent_policy_gate": "failed",
   "items": {
@@ -14,16 +14,12 @@
     "figure_4a_import_dynamic": "gate_passed",
     "figure_4b_export_dynamic": "blocked_missing_data",
     "independent_section301_policy": "gate_failed",
-    "raw_trade_extension_2025": "pending_archive_native_release_validation"
+    "raw_trade_extension_2025": "validated_nominal_archive_native"
   },
   "package_full_vs_common_gate": "passed",
   "package_import_pdf_gate": "passed",
   "package_provenance_gate": "passed",
-  "raw_outcome_point_estimate_gate": "failed",
-  "raw_outcome_inference_gate": "failed",
   "raw_outcome_bridge_gate": "failed",
-  "raw_trade_archive_gate": "pending",
-  "raw_trade_outcome_extension_gate": "pending",
   "raw_trade_archive_ingestion_gate": "passed",
   "raw_trade_concordance_gate": "pending",
   "raw_trade_duty_preservation_gate": "pending",
@@ -42,22 +38,17 @@
       "status": "complete"
     },
     {
-      "detail": "v4 calculated-duty construction passes value, quantity, price, and duty-price point metrics; inference gate remains separate",
-      "specification": "raw_outcome_point_estimate",
-      "status": "passed"
-    },
-    {
-      "detail": "event/value and event/price CI overlap, plus dynamic/price correlation and CI, remain below registered thresholds",
-      "specification": "raw_outcome_inference",
+      "detail": "registered thresholds are unchanged",
+      "specification": "raw_outcome_bridge",
       "status": "failed"
     },
     {
-      "detail": "312 staging partitions; ZIP-native reparse pending",
+      "detail": "312 archives",
       "specification": "raw_trade_archive_ingestion",
-      "status": "pending"
+      "status": "passed"
     },
     {
-      "detail": "312/312 monthly comparisons",
+      "detail": "312 archive-native partitions; 0 failures",
       "specification": "raw_trade_staging_reconciliation",
       "status": "passed"
     },
@@ -67,18 +58,18 @@
       "status": "pending"
     },
     {
-      "detail": "2018 layout confirms dutiable-value versus calculated-duty semantics; cross-vintage audit remains",
+      "detail": "duty fields are present; units and source semantics require review",
       "specification": "raw_trade_duty_preservation",
       "status": "pending"
     },
     {
-      "detail": "pending_obsolete_mapping_parse",
+      "detail": "native audit absent",
       "specification": "raw_trade_concordance",
       "status": "pending"
     },
     {
-      "detail": "156 archive-native raw outcome partitions built; independent ZIP/concordance/CPI gates pending",
-      "specification": "raw_trade_outcome_extension",
+      "detail": "nominal extension is canonical; CPI real-value build not run",
+      "specification": "raw_trade_real_values",
       "status": "pending"
     },
     {

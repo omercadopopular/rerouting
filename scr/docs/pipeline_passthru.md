@@ -430,3 +430,11 @@ missing/zero flags, `dut_val_mo`, `cal_dut_mo`, and separately derived price
 fields. It contains no package-policy variables. This is validated against the
 archive-native staging partitions; ZIP-native reparse, cross-vintage
 concordance, and CPI-real gates remain pending.
+
+## 2026-07-18 methodology-lock v2 correction
+
+The original-period replication implementation is being rebuilt under a versioned methodology namespace. Three defects are now treated as invalidating the prior canonical comparisons: raw imports used GEN_VAL_MO instead of GEN_CIF_MO; Python dynamic differences and leads/lags crossed missing calendar months; and the Figure 4a vector extractor admitted the x-axis label -6 into the y-axis calibration. The corrected method uses CIF plus calculated duty for raw outcomes, exact Stata monthly-calendar operators, and independently validated PDF geometry. Historical outputs remain diagnostic and are not promoted by copying coefficients. Independent Section 301 policy matching and the 2025 event remain separate, unresolved gates.
+
+## 2026-07-19 verification update
+
+The package-only original-horizon import benchmark is current and passes: 8/8 event/dynamic fits, 13 horizons each, maximum package/PDF difference 0.86862. The corrected CIF bridge has 16/16 resumable fits. Its point estimates pass for all outcomes/specifications; only the event duty-inclusive price interval-overlap metric fails (0.74992 versus 0.80), so the raw-outcome bridge gate remains failed while point-estimate replication is accepted as close. The independent archive-native extension covers 156 import and 156 export months through 2025-12 in 312 ZSTD Parquet partitions with zero duplicate keys and zero monthly value-reconciliation failures. Concordance, quantity-semantics, duty-unit, and CPI-real-value audits remain pending. Section 301 legal mapping remains outside tolerance and no v5 tariff sensitivity or 2025 event study is released.
