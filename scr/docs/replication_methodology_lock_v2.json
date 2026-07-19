@@ -1,0 +1,207 @@
+{
+  "cpi": {
+    "data_preserved": true,
+    "historical_replication_role": "not_required_for_replication",
+    "nominal_values_are_canonical": true
+  },
+  "created_at_utc": "2026-07-19T20:09:00.886694+00:00",
+  "figures": {
+    "dynamic_pdf": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_dynamic.pdf",
+    "dynamic_png": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_dynamic.png",
+    "event_pdf": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_event.pdf",
+    "event_png": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_event.png",
+    "four_line_dynamic_pdf": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/historical_replication_four_line_dynamic.pdf",
+    "four_line_dynamic_png": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/historical_replication_four_line_dynamic.png",
+    "four_line_event_pdf": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/historical_replication_four_line_event.pdf",
+    "four_line_event_png": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/historical_replication_four_line_event.png"
+  },
+  "gates": {
+    "cpi_real_values_for_historical_replication": "not_required_for_replication",
+    "event_2025_ready": false,
+    "forward_2025_policy_ledger_gate": "failed",
+    "historical_replication_methodology_lock": "passed",
+    "independent_2018_final_legal_variable_gate": "passed",
+    "package_import_pdf_gate": "passed",
+    "package_provenance_gate": "passed",
+    "paper_compatible_event_encoding_gate": "passed",
+    "paper_compatible_policy_curve_gate": "passed",
+    "paper_compatible_policy_variable_gate": "passed",
+    "raw_outcome_inference_diagnostic": "failed",
+    "raw_outcome_point_estimate_gate": "passed",
+    "section301_v5_ready": false
+  },
+  "historical_methodology_locked": true,
+  "outcomes": {
+    "pduty": "(GEN_CIF_MO + CAL_DUT_MO) / GEN_QY1_MO",
+    "price": "GEN_CIF_MO / GEN_QY1_MO",
+    "quantity": "GEN_QY1_MO / 1,000,000 with missing distinct from zero",
+    "value": "GEN_CIF_MO / 1,000,000"
+  },
+  "package_evidence": {
+    "completed_fit_count": 8,
+    "expected_fit_count": 8,
+    "max_pdf_abs_difference": 0.868619474299372,
+    "missing_export_figure_4b": true,
+    "threshold": 1.1
+  },
+  "policy_evidence": {
+    "forward_2025_ledger_ready": false,
+    "historical_curve_gate_manifest": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/section301_policy_curve_gate.json",
+    "independent_2018_final_legal_variable_gate": {
+      "all_checks_pass": true,
+      "baseline_semantics": "fixed independently parsed 2017 MFN level; package baseline is never copied",
+      "checks": {
+        "active_key_coverage": true,
+        "effective_month_exact_match": true,
+        "effective_month_within_one_match": true,
+        "increment_within_10bp": true,
+        "increment_within_50bp": true,
+        "paper_key_coverage": true,
+        "trade_weighted_increment_mae": true,
+        "trade_weighted_treatment_match": true,
+        "treatment_match": true,
+        "unclassified_mismatch_trade_share": true
+      },
+      "gate_scope": "independent_section301_scope_timing_and_increment",
+      "historical_paper_methodology_lock_role": "not_applicable_determined_by_regression_finalizer",
+      "legacy_exact_rate_metrics_superseded": {
+        "day_weighted_rate_exact": 0.4289451691,
+        "statutory_rate_exact": 0.4853203009
+      },
+      "legal_mapping_semantics_changed_from_legacy": true,
+      "metrics": {
+        "active_key_coverage": 1.0,
+        "dayweighted_increment_exact_match": 0.2529805558689684,
+        "dayweighted_increment_within_10bp": 1.0,
+        "dayweighted_increment_within_50bp": 1.0,
+        "effective_month_exact_match": 1.0,
+        "effective_month_within_one_match": 1.0,
+        "increment_within_10bp": 1.0,
+        "increment_within_50bp": 1.0,
+        "package_increment_reference_coverage_diagnostic": 0.8919382504288165,
+        "paper_key_coverage": 1.0,
+        "scope_match_diagnostic": 0.9918824893699265,
+        "scope_mismatch_share_of_affected_trade": 0.01053423313398417,
+        "scope_mismatch_share_of_all_trade": 0.0049870647248802386,
+        "total_tariff_within_10bp_diagnostic": 0.8595058413400779,
+        "total_tariff_within_50bp_diagnostic": 0.8601886166905748,
+        "trade_weighted_increment_mae": 2.056232997532205e-09,
+        "trade_weighted_scope_match_diagnostic": 0.9950129352751197,
+        "trade_weighted_treatment_match": 0.9978277767922441,
+        "treatment_match": 0.9955546965597217,
+        "unclassified_mismatch_trade_share": 0.002118152467576173
+      },
+      "source_fingerprints": {
+        "data/raw/passthru_data/policy/archive/data/hts_2018_revision_10_data.csv": "60a71c887c95c158eb91c5e1e05b60b6a166a7a1632fefde2f44db9bde0bd642",
+        "data/raw/passthru_data/policy/archive/data/hts_2018_revision_11_data.csv": "31ff46da208d5d693c57e8148888e6e624c622097de19d0dbc94a50a99e83644",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision10.pdf": "a2308bb262822dd435f0b942d878f07f80657e5ca5af2c2de85969629ffc17f3",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision12.pdf": "8c3ac0cf4347df025a77c45671b5b1b38cde6ba021316ff130f7f4b92dd37868",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision7_1.pdf": "e3fc6fc740c675148ad7c4e0139872cf244eb5a8e64211571ecb0c057a5431ce"
+      },
+      "status": "passed",
+      "thresholds": {
+        "active_key_coverage": 0.99,
+        "effective_month_exact_match": 0.95,
+        "effective_month_within_one_match": 0.99,
+        "increment_within_10bp": 0.9,
+        "increment_within_50bp": 0.95,
+        "paper_key_coverage": 0.99,
+        "trade_weighted_increment_mae": 0.005,
+        "trade_weighted_treatment_match": 0.98,
+        "treatment_match": 0.95,
+        "unclassified_mismatch_trade_share": 0.01
+      },
+      "total_tariff_level_is_diagnostic_not_shock_gate": true,
+      "version": "section301_policy_replication_v2_final_legal"
+    },
+    "missing_source_status": "missing_official_proposal_documents",
+    "paper_compatible_event_encoding_gate": {
+      "all_checks_pass": true,
+      "legal_calendar_is_diagnostic": true,
+      "m_ess_is_diagnostic_not_event_estimator_input": true,
+      "paper_compatible_metrics": {
+        "comparison_mode": "raw_outcomes_paper_compatible_section301_policy",
+        "effective_date_match": 1.0,
+        "ess_match": 0.9477800774927657,
+        "role": "registered_historical_encoding_gate",
+        "rows": 2548625,
+        "status_match": 1.0
+      },
+      "required_exact_matches": [
+        "m_status2",
+        "m_effective_mdate2"
+      ],
+      "stated_partner_encoding": {
+        "post_event_china": 2,
+        "post_event_comparison_partner": 1,
+        "pre_event": 0
+      },
+      "status": "passed",
+      "version": "section301_policy_replication_v2_paper_compatibility"
+    },
+    "paper_compatible_is_independent_legal_evidence": false,
+    "paper_compatible_uses_validation_derived_reconciliation": true,
+    "paper_compatible_variable_gate": {
+      "all_checks_pass": true,
+      "checks": {
+        "effective_month_exact_match": true,
+        "estimator_target_match": true,
+        "increment_within_10bp": true,
+        "source_vintage_classification_coverage": true,
+        "trade_weighted_estimator_target_match": true
+      },
+      "copies_package_policy_values": false,
+      "forward_policy_ready": false,
+      "gate_scope": "historical_paper_compatible_section301_assignment",
+      "independent_legal_evidence": false,
+      "metrics": {
+        "dayweighted_increment_exact_match_diagnostic": 0.8458207911659373,
+        "effective_month_exact_match": 1.0,
+        "estimator_target_match": 1.0,
+        "increment_within_10bp": 1.0,
+        "scope_match_diagnostic": 1.0,
+        "source_vintage_classification_coverage": 1.0,
+        "trade_weighted_estimator_target_match": 1.0,
+        "valid_at_effective_source_vintage_diagnostic": 1.0
+      },
+      "registered_sample": "Section 301 product union excluding package cross-family products",
+      "source_fingerprints": {
+        "data/raw/passthru_data/policy/archive/data/hts_2018_revision_10_data.csv": "60a71c887c95c158eb91c5e1e05b60b6a166a7a1632fefde2f44db9bde0bd642",
+        "data/raw/passthru_data/policy/archive/data/hts_2018_revision_11_data.csv": "31ff46da208d5d693c57e8148888e6e624c622097de19d0dbc94a50a99e83644",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision10.pdf": "a2308bb262822dd435f0b942d878f07f80657e5ca5af2c2de85969629ffc17f3",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision12.pdf": "8c3ac0cf4347df025a77c45671b5b1b38cde6ba021316ff130f7f4b92dd37868",
+        "data/raw/passthru_data/policy/archive/pdf/2018HTSARevision7_1.pdf": "e3fc6fc740c675148ad7c4e0139872cf244eb5a8e64211571ecb0c057a5431ce"
+      },
+      "status": "passed",
+      "thresholds": {
+        "effective_month_exact_match": 0.999,
+        "estimator_target_match": 0.999,
+        "increment_within_10bp": 0.999,
+        "source_vintage_classification_coverage": 1.0,
+        "trade_weighted_estimator_target_match": 0.999
+      },
+      "uses_validation_derived_reconciliation": true,
+      "version": "section301_policy_replication_v2_paper_compatibility"
+    }
+  },
+  "raw_outcome_evidence": {
+    "bridge_gate_manifest": "data/verification/passthru_data/trade_regressions/package_benchmark_v5/common_sample_v5_cif/bridge_resumable_v5/bridge_gate.json",
+    "failed_registered_metrics": [
+      "ci_overlap"
+    ],
+    "inference_diagnostic": "failed",
+    "point_estimate_gate": "passed"
+  },
+  "scope": {
+    "excluded": [
+      "Figure 4b exports",
+      "other manuscript tables",
+      "2025 tariff event study"
+    ],
+    "included": [
+      "Figure 2 imports",
+      "Figure 4a imports"
+    ]
+  },
+  "version": "replication_methodology_lock_v2_policy_separated"
+}
