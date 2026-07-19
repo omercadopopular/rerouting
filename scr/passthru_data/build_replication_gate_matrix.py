@@ -27,17 +27,17 @@ def build_gate_matrix(config: PipelineConfig) -> dict[str, Any]:
     pdf_path = package_root / "package_pdf_comparison.parquet"
     # v3 separates the package anchor from the raw-outcome source.  Retain v2
     # only as a historical fallback when the v3 run has not been materialized.
-    bridge_root = package_root / "common_sample_v3" / "bridge_resumable"
+    bridge_root = package_root / "common_sample_v5_cif" / "bridge_resumable_v5"
     if not (bridge_root / "bridge_gate.json").exists():
         bridge_root = package_root / "common_sample_v2" / "bridge_resumable"
     bridge = _load(bridge_root / "bridge_gate.json")
-    aligned = _load(package_root / "common_sample_v3" / "aligned_bridge_manifest.json")
+    aligned = _load(package_root / "common_sample_v5_cif" / "aligned_bridge_manifest.json")
     if not aligned:
         aligned = _load(package_root / "common_sample_v2" / "aligned_bridge_manifest.json")
-    extension = _load(config.verification_dir / "extension_v2" / "extension_build_manifest.json")
-    staging = _load(config.verification_dir / "extension_v2" / "extension_v2_staging_comparison_manifest.json")
-    native = _load(config.verification_dir / "extension_v3" / "extension_native_concordance_manifest.json")
-    quantity_tokens = _load(config.verification_dir / "extension_v3" / "extension_quantity_token_manifest.json")
+    extension = _load(config.verification_dir / "extension_v4_cif" / "extension_build_manifest.json")
+    staging = _load(config.verification_dir / "extension_v4_cif" / "extension_build_manifest.json")
+    native = _load(config.verification_dir / "extension_v4_cif" / "extension_concordance_audit.json")
+    quantity_tokens = _load(config.verification_dir / "extension_v4_cif" / "extension_quantity_audit.json")
     policy = _load(config.verification_dir / "policy_2025_preflight" / "policy_2025_preflight_manifest.json")
 
     rows: list[dict[str, Any]] = []
@@ -50,9 +50,10 @@ def build_gate_matrix(config: PipelineConfig) -> dict[str, Any]:
     else:
         bridge_status = "failed"
     rows.append({"specification": "raw_outcome_bridge", "status": bridge_status, "detail": "registered thresholds are unchanged"})
+    staging_gate = "passed" if staging.get("status") == "complete" and int(staging.get("reconciliation_failures", 0)) == 0 else staging.get("status", "pending")
     rows.extend([
         {"specification": "raw_trade_archive_ingestion", "status": extension.get("archive_validation_gate", "pending"), "detail": f"{extension.get('archive_count', 0)} archives"},
-        {"specification": "raw_trade_staging_reconciliation", "status": staging.get("status", "pending"), "detail": f"{staging.get('passed', 0)}/{staging.get('rows', 0)} monthly comparisons"},
+        {"specification": "raw_trade_staging_reconciliation", "status": staging_gate, "detail": f"{staging.get('partition_count', 0)} archive-native partitions; {staging.get('reconciliation_failures', 0)} failures"},
         {"specification": "raw_trade_quantity_semantics", "status": quantity_tokens.get("quantity_token_gate", "pending"), "detail": "source fixed-width quantity token audit"},
         {"specification": "raw_trade_duty_preservation", "status": "pending", "detail": "duty fields are present; units and source semantics require review"},
         {"specification": "raw_trade_concordance", "status": "pending" if native.get("mapping_gate") != "passed" else "passed", "detail": native.get("mapping_gate", "native audit absent")},
@@ -61,7 +62,6 @@ def build_gate_matrix(config: PipelineConfig) -> dict[str, Any]:
     ])
     package_gate = "passed" if package.get("status") == "complete" else "failed"
     archive_gate = extension.get("archive_validation_gate", "pending")
-    staging_gate = staging.get("status", "pending")
     payload: dict[str, Any] = {
         "version": VERSION,
         "created_at": datetime.now(timezone.utc).date().isoformat(),
