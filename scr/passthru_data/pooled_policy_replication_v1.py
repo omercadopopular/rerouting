@@ -66,6 +66,13 @@ EXPECTED_POSITIVE_RULE_PREFIXES = {
     "aluminum_232": ("99038501", "99038505", "99038506"),
     "china_301": ("990388",),
 }
+# These are not ordinary universal product-level treatments.  Their roles are
+# derived from the local HTS descriptions and effective dates, and therefore
+# must not be treated as missing universal HS8 scope in the paper-window gate.
+RULE_ROLE_OVERRIDES = {
+    "99038061": "conditional_entry_exception",
+    "99038809": "transitional_entry_rule",
+}
 PAPER_THRESHOLDS = {
     "package_key_coverage": 0.99,
     "treatment_match": 0.95,
@@ -100,6 +107,92 @@ def relative(config: PipelineConfig, path: Path) -> str:
 
 def _hash_payload(payload: Any) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def _rule_role(rule_code: str, description: Any = None) -> str:
+    """Return a typed legal role for a Chapter-99 rule.
+
+    A positive numeric increment is not sufficient to establish universal
+    product treatment: quota alternatives, exclusions, and transitional or
+    entry-specific provisions are distinct legal objects.
+    """
+    code = normalize_hs_code(rule_code, 8) or str(rule_code or "")
+    if code in RULE_ROLE_OVERRIDES:
+        return RULE_ROLE_OVERRIDES[code]
+    text = str(description or "").upper()
+    if "QUALIFYING CONTRACT" in text or "EXCLUDED FROM" in text:
+        return "conditional_entry_exception"
+    if "EXPORTED TO THE UNITED STATES BEFORE" in text or "ENTERED FOR CONSUMPTION" in text:
+        return "transitional_entry_rule"
+    if "QUOTA" in text or "QUANTIT" in text:
+        return "quota_or_trq_alternative"
+    if code.startswith("990388"):
+        return "universal_additional_duty"
+    return "universal_additional_duty"
+
+
+def _rule_relevant_in_window(rule_code: str, description: Any, start: pd.Timestamp, end: pd.Timestamp) -> bool:
+    """Apply explicit source-derived timing for transitional rules."""
+    code = normalize_hs_code(rule_code, 8) or str(rule_code or "")
+    text = str(description or "").upper()
+    if code == "99038809":
+        # The local HTS description states exports before 10 May 2019 and
+        # entry between 10 May and 15 June 2019.  It is outside the paper
+        # sample ending 2019-04 and must not block that historical gate.
+        transition_start = pd.Timestamp("2019-05-10")
+        transition_end = pd.Timestamp("2019-06-14")
+        return transition_start <= end and transition_end >= start
+    if code in {"99038815", "99038816"}:
+        # Their first local attribute periods are September/December 2019;
+        # they are forward-historical rules, not paper-window rules.
+        return end >= pd.Timestamp("2019-09-01") if code == "99038815" else end >= pd.Timestamp("2019-12-01")
+    if "BEFORE MAY 10, 2019" in text and end < pd.Timestamp("2019-05-10"):
+        return False
+    return True
+
+
+def _build_rule_ledger(config: PipelineConfig, attrs: pd.DataFrame) -> pd.DataFrame:
+    """Materialize a compact, source-auditable legal-role ledger."""
+    if attrs.empty:
+        return pd.DataFrame()
+    frame = attrs.copy()
+    frame["rule_code"] = frame["rule_code"].map(lambda value: normalize_hs_code(value, 8))
+    frame["year"] = pd.to_numeric(frame["year"], errors="coerce")
+    frame["month"] = pd.to_numeric(frame["month"], errors="coerce")
+    rows: list[dict[str, Any]] = []
+    historical_start = pd.Timestamp("2017-01-01")
+    historical_end = pd.Timestamp("2019-04-30")
+    forward_start = pd.Timestamp("2025-01-01")
+    forward_end = pd.Timestamp("2025-12-31")
+    source_path = config.reference_dir / "tradewar_rule_attributes.parquet"
+    source_hash = sha256_file(source_path) if source_path.exists() else None
+    for rule_code, group in frame.groupby("rule_code", dropna=True):
+        description = str(group["description"].dropna().iloc[0]) if group["description"].notna().any() else ""
+        role = _rule_role(rule_code, description)
+        first = pd.Timestamp(year=int(group["year"].min()), month=int(group["month"].min()), day=1)
+        last = pd.Timestamp(year=int(group["year"].max()), month=int(group["month"].max()), day=1) + pd.offsets.MonthEnd(1)
+        rows.append({
+            "rule_code": str(rule_code),
+            "policy_family": _rule_family(str(rule_code)),
+            "legal_role": role,
+            "source_note": re.search(r"note\s+\d+\([a-z]\)", description, flags=re.I).group(0) if re.search(r"note\s+\d+\([a-z]\)", description, flags=re.I) else None,
+            "first_attribute_period": first.strftime("%Y-%m"),
+            "last_attribute_period": last.strftime("%Y-%m"),
+            "increment_rate_min": float(group["increment_rate"].min()),
+            "increment_rate_max": float(group["increment_rate"].max()),
+            "product_scope_kind": "conditional_entry" if role == "conditional_entry_exception" else "rule_scope",
+            "universal_product_treatment": role not in {"conditional_entry_exception", "transitional_entry_rule", "administrative_reporting_rule"},
+            "conditional_entry_treatment": role == "conditional_entry_exception",
+            "quota_or_trq": role == "quota_or_trq_alternative",
+            "transitional_rule": role == "transitional_entry_rule",
+            "historical_window_relevant": _rule_relevant_in_window(rule_code, description, historical_start, historical_end),
+            "forward_2025_window_relevant": first <= forward_end and last >= forward_start,
+            "source_path": relative(config, source_path),
+            "source_sha256": source_hash,
+            "review_status": "source_audited_role_classification",
+            "unresolved_reason": "conditional entry-level scope not observed in product panel" if role == "conditional_entry_exception" else None,
+        })
+    return pd.DataFrame(rows).sort_values("rule_code").reset_index(drop=True)
 
 
 def _local_source_inventory(config: PipelineConfig) -> dict[str, Any]:
@@ -398,9 +491,26 @@ def _active_share(legal_start: Any, legal_end: Any, year: int, month: int) -> fl
     return float((right - left).days + 1) / float(end.day)
 
 
-def _family_source_status(links: pd.DataFrame, attrs: pd.DataFrame) -> dict[str, dict[str, Any]]:
+def _family_source_status(
+    links: pd.DataFrame,
+    attrs: pd.DataFrame,
+    start_period: str | None = None,
+    end_period: str | None = None,
+) -> dict[str, dict[str, Any]]:
     """Classify independently sourced family/rule scope without package data."""
     linked_rules = set(links.get("rule_code", pd.Series(dtype="string")).dropna().astype(str))
+    attrs = attrs.copy()
+    attrs["rule_code"] = attrs.get("rule_code", pd.Series(dtype="string")).map(lambda value: normalize_hs_code(value, 8))
+    start = pd.Timestamp(start_period or "2017-01-01")
+    end = pd.Timestamp(end_period or "2019-04-30")
+    if {"year", "month"}.issubset(attrs.columns):
+        period = pd.to_datetime(
+            attrs["year"].astype("string") + "-" + attrs["month"].astype("string").str.zfill(2) + "-01",
+            errors="coerce",
+        )
+        attrs = attrs.loc[period.between(start, end, inclusive="both") | attrs["rule_code"].map(
+            lambda code: code is not None and _rule_relevant_in_window(code, "", start, end)
+        )].copy()
     attributed_rules = set(attrs.get("rule_code", pd.Series(dtype="string")).dropna().astype(str))
     statuses: dict[str, dict[str, Any]] = {}
     for family in FAMILIES:
@@ -417,14 +527,28 @@ def _family_source_status(links: pd.DataFrame, attrs: pd.DataFrame) -> dict[str,
             if (float(attrs.loc[attrs["rule_code"].astype(str).eq(code), "increment_rate"].max())
                 if not attrs.empty and "increment_rate" in attrs else 0.0) > 0
         )
-        positive_missing = [code for code in positive_rules if code not in linked_rules]
+        roles = {
+            code: _rule_role(
+                code,
+                attrs.loc[attrs["rule_code"].astype(str).eq(code), "description"].iloc[0]
+                if "description" in attrs and attrs.loc[attrs["rule_code"].astype(str).eq(code), "description"].any()
+                else "",
+            )
+            for code in positive_rules
+        }
+        universal_positive = [code for code in positive_rules if roles[code] not in {"conditional_entry_exception", "transitional_entry_rule", "administrative_reporting_rule"}]
+        positive_missing = [code for code in universal_positive if code not in linked_rules]
         statuses[family] = {
             "linked_rule_count": int(len(family_links)),
             "attributed_rule_count": int(len(family_attrs)),
             "attribute_rules_without_scope_links": sorted(family_attrs - linked_rules),
             "expected_positive_rule_prefixes": list(EXPECTED_POSITIVE_RULE_PREFIXES[family]),
             "positive_attribute_rules": positive_rules,
+            "rule_roles": roles,
+            "universal_positive_rules": universal_positive,
             "expected_positive_rules_without_scope_links": positive_missing,
+            "conditional_or_transitional_rules": [code for code in positive_rules if code not in universal_positive],
+            "historical_window": {"start": start.strftime("%Y-%m"), "end": end.strftime("%Y-%m")},
             "scope_status": "complete" if family_links and family_attrs and not positive_missing else "partial_missing_positive_scope",
         }
     return statuses
@@ -546,7 +670,27 @@ def build_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
         return {"status": "blocked_missing_sources", "inventory": inventory}
     links = _all_links(config)
     attrs = _load_tradewar_rule_attributes(config)
-    family_source_status = _family_source_status(links, attrs)
+    rule_ledger = _build_rule_ledger(config, attrs)
+    rule_ledger_path = analysis_root(config) / "policy_rule_ledger.parquet"
+    write_parquet(rule_ledger, rule_ledger_path, overwrite=True)
+    write_metadata_json(
+        root(config) / "policy_rule_ledger_manifest.json",
+        {
+            "version": VERSION,
+            "artifact_category": "detailed_diagnostic",
+            "canonical_relative_path": relative(config, rule_ledger_path),
+            "row_count": int(len(rule_ledger)),
+            "key_columns": ["rule_code"],
+            "source_path": relative(config, config.reference_dir / "tradewar_rule_attributes.parquet"),
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    family_source_status = _family_source_status(
+        links,
+        attrs,
+        start_period="2017-01-01",
+        end_period="2019-04-30",
+    )
     missing_families = [family for family, status in family_source_status.items() if status["scope_status"] != "complete"]
     write_metadata_json(
         root(config) / "pooled_policy_family_source_status.json",
@@ -563,6 +707,7 @@ def build_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
             "status": "blocked_partial_family_scope" if missing_families else inventory["status"],
             "missing_families": missing_families,
             "family_source_status": family_source_status,
+            "rule_ledger": relative(config, rule_ledger_path),
         },
     )
     actions = _expand_actions(config, links, attrs)
@@ -585,6 +730,10 @@ def build_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
         "package_policy_used_by_builder": False,
         "missing_families": missing_families,
         "family_source_status": family_source_status,
+        "rule_ledger": relative(config, rule_ledger_path),
+        "historical_scope_gate": "passed" if not missing_families else "failed",
+        "independent_legal_gate": "failed_conditional_or_forward_scope_unresolved",
+        "paper_compatible_gate": "pending_timing_and_same_sample_regression",
     }
     write_metadata_json(root(config) / "pooled_policy_build_manifest.json", manifest)
     return manifest
@@ -594,16 +743,111 @@ def _package_reference(config: PipelineConfig) -> Path:
     return config.verification_dir / "trade_regressions" / "package_benchmark_v5" / "cache" / "package_full_panel_hs10fixed.parquet"
 
 
+def _package_policy_projection(config: PipelineConfig) -> tuple[Path, dict[str, Any]]:
+    """Materialize the authors' policy fields without loading the DTA at once.
+
+    The pooled-policy validator must compare like objects: independently
+    reconstructed *additional* components are compared with the package's
+    ``m_stattariff1``/``m_stattariff2`` fields and family hit indicators.  The
+    package benchmark cache intentionally omits those policy columns, so this
+    chunked projection is kept as a separate diagnostic artifact.
+    """
+    destination = root(config) / "package_policy_projection_v2.parquet"
+    source = config.repo_root / "data" / "fajgelbaum" / "data" / "analysis" / "m_flow_hs10_fm_new.dta"
+    if destination.exists():
+        return destination, {"status": "existing", "source": relative(config, source)}
+    if not source.exists():
+        return destination, {"status": "blocked_missing_source", "source": relative(config, source)}
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+    except Exception as exc:  # pragma: no cover - environment diagnostic
+        return destination, {"status": "blocked_missing_pyarrow", "error": str(exc)}
+
+    columns = [
+        "cty_code", "hs10", "year", "month", "m_val", "m_q1",
+        "m_status2", "m_effective_mdate1", "m_effective_mdate2", "m_stattariff1", "m_stattariff2", "m_increase",
+        "m_china_hit", "m_steel_hit", "m_alum_hit", "m_washer_hit", "m_solar_hit",
+    ]
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
+    os.close(fd)
+    Path(temporary_name).unlink(missing_ok=True)
+    temporary = Path(temporary_name)
+    writer = None
+    rows = 0
+    try:
+        reader = pd.read_stata(source, iterator=True, chunksize=200_000, convert_categoricals=False)
+        while True:
+            try:
+                frame = reader.read(columns=columns, convert_categoricals=False)
+            except StopIteration:
+                break
+            if frame.empty:
+                continue
+            frame["hs10"] = frame["hs10"].map(lambda value: normalize_hs_code(value, 10))
+            frame["year"] = pd.to_numeric(frame["year"], errors="coerce").astype("Int64")
+            frame["month"] = pd.to_numeric(frame["month"], errors="coerce").astype("Int64")
+            frame = frame[
+                frame["year"].between(int(config.start_period[:4]), int(config.end_period[:4]))
+                & frame["hs10"].notna()
+            ].copy()
+            if frame.empty:
+                continue
+            table = pa.Table.from_pandas(frame, preserve_index=False)
+            if writer is None:
+                writer = pq.ParquetWriter(temporary, table.schema, compression="zstd")
+            else:
+                table = table.cast(writer.schema_arrow)
+            writer.write_table(table)
+            rows += len(frame)
+        if writer is None or rows == 0:
+            raise ValueError("Package policy projection produced no rows")
+        writer.close()
+        writer = None
+        parquet_file = pq.ParquetFile(temporary)
+        if parquet_file.metadata.num_rows != rows or parquet_file.metadata.num_row_groups == 0:
+            raise ValueError("Package policy projection failed row-count validation")
+        compression = {
+            parquet_file.metadata.row_group(0).column(i).compression
+            for i in range(parquet_file.metadata.row_group(0).num_columns)
+        }
+        if compression != {"ZSTD"}:
+            raise ValueError(f"Package policy projection expected ZSTD, got {compression}")
+        del parquet_file
+        temporary.replace(destination)
+        write_metadata_json(
+            destination.with_suffix(".json"),
+            {
+                "artifact_category": "detailed_diagnostic",
+                "canonical_relative_path": relative(config, destination),
+                "source_path": relative(config, source),
+                "source_sha256": sha256_file(source),
+                "row_count": rows,
+                "key_columns": ["cty_code", "hs10", "year", "month"],
+                "columns": columns,
+                "compression": "ZSTD",
+                "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        return destination, {"status": "built", "rows": rows, "source": relative(config, source)}
+    finally:
+        if writer is not None:
+            writer.close()
+        if temporary.exists():
+            temporary.unlink()
+
+
 def validate_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
     panel_path = analysis_root(config) / "independent_final_legal_pooled_policy.parquet"
     reference = _package_reference(config)
-    if not panel_path.exists() or not reference.exists():
-        result = {"status": "blocked_missing_artifact", "panel": relative(config, panel_path), "reference": relative(config, reference)}
+    policy_reference, projection_status = _package_policy_projection(config)
+    if not panel_path.exists() or not reference.exists() or not policy_reference.exists():
+        result = {"status": "blocked_missing_artifact", "panel": relative(config, panel_path), "reference": relative(config, reference), "package_policy_projection": projection_status}
         write_metadata_json(root(config) / "pooled_policy_replication_gate.json", result)
         return result
     import duckdb
     legal_sql = str(panel_path).replace("'", "''")
-    pkg_sql = str(reference).replace("'", "''")
+    pkg_sql = str(policy_reference).replace("'", "''")
     comparison_path = root(config) / "pooled_policy_validation_comparison.parquet"
     con = duckdb.connect()
     try:
@@ -617,16 +861,22 @@ def validate_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
                p.aluminum_232_additional_rate, p.aluminum_232_day_weighted_additional_rate,
                p.china_301_additional_rate, p.china_301_day_weighted_additional_rate,
                p.independent_total_day_weighted_rate,
-               r.m_status2, r.m_effective_mdate2, r.m_stattariff2,
+               r.m_status2, r.m_effective_mdate1, r.m_effective_mdate2, r.m_stattariff1, r.m_stattariff2,
+               r.m_increase AS package_additional_rate,
+               r.m_china_hit AS package_china_hit,
+               r.m_steel_hit AS package_steel_hit,
+               r.m_alum_hit AS package_alum_hit,
+               r.m_washer_hit AS package_washer_hit,
+               r.m_solar_hit AS package_solar_hit,
                r.m_val,
-               CASE WHEN p.independent_legal_effective_month IS NULL OR r.m_effective_mdate2 IS NULL THEN NULL
-                    WHEN strftime(r.m_effective_mdate2, '%Y-%m') = p.independent_legal_effective_month THEN 1 ELSE 0 END AS effective_month_exact,
+               CASE WHEN p.independent_legal_effective_month IS NULL OR r.m_effective_mdate1 IS NULL THEN NULL
+                    WHEN strftime(r.m_effective_mdate1, '%Y-%m') = p.independent_legal_effective_month THEN 1 ELSE 0 END AS effective_month_exact,
                CASE WHEN p.independent_paper_effective_month IS NULL OR r.m_effective_mdate2 IS NULL THEN NULL
                     WHEN abs(date_diff('month', cast(r.m_effective_mdate2 AS DATE), cast(p.independent_paper_effective_month || '-01' AS DATE))) <= 1 THEN 1 ELSE 0 END AS paper_month_within_one,
-               CASE WHEN r.m_stattariff2 IS NULL OR p.independent_additional_rate IS NULL THEN NULL
-                    ELSE abs(cast(p.independent_additional_rate AS DOUBLE) - cast(r.m_stattariff2 AS DOUBLE)) END AS additional_abs_diff,
-               CASE WHEN r.m_stattariff2 IS NULL OR p.independent_day_weighted_additional_rate IS NULL THEN NULL
-                    ELSE abs(cast(p.independent_day_weighted_additional_rate AS DOUBLE) - cast(r.m_stattariff2 AS DOUBLE)) END AS dayweighted_abs_diff
+               CASE WHEN r.m_increase IS NULL OR p.independent_additional_rate IS NULL THEN NULL
+                    ELSE abs(cast(p.independent_additional_rate AS DOUBLE) - cast(r.m_increase AS DOUBLE)) END AS additional_abs_diff,
+               CASE WHEN r.m_increase IS NULL OR p.independent_day_weighted_additional_rate IS NULL THEN NULL
+                    ELSE abs(cast(p.independent_day_weighted_additional_rate AS DOUBLE) - cast(r.m_increase AS DOUBLE)) END AS dayweighted_abs_diff
         FROM read_parquet('{legal_sql}') p
         JOIN read_parquet('{pkg_sql}') r USING (cty_code, hs10, year, month)
         WHERE r.year BETWEEN 2017 AND 2019
@@ -656,17 +906,24 @@ def validate_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
         for family in FAMILIES:
             additional = f"{family}_additional_rate"
             weighted = f"{family}_day_weighted_additional_rate"
+            pkg_hit = {
+                "solar_201": "package_solar_hit",
+                "washer_201": "package_washer_hit",
+                "steel_232": "package_steel_hit",
+                "aluminum_232": "package_alum_hit",
+                "china_301": "package_china_hit",
+            }[family]
             family_rows.append(
                 con.execute(
                     f"""
                     SELECT '{family}' AS family,
                            count(*) FILTER (WHERE {additional} IS NOT NULL) AS independent_scope_rows,
-                           avg(CASE WHEN {additional} IS NOT NULL AND cast(m_status2 AS DOUBLE)=2 THEN 1.0 ELSE 0.0 END)
+                           avg(CASE WHEN {additional} IS NOT NULL AND cast({pkg_hit} AS DOUBLE)=1 THEN 1.0 ELSE 0.0 END)
                              FILTER (WHERE {additional} IS NOT NULL) AS package_treatment_match,
-                           avg(abs(cast({additional} AS DOUBLE)-cast(m_stattariff2 AS DOUBLE)))
-                             FILTER (WHERE {additional} IS NOT NULL AND m_stattariff2 IS NOT NULL) AS additional_mae,
-                           avg(abs(cast({weighted} AS DOUBLE)-cast(m_stattariff2 AS DOUBLE)))
-                             FILTER (WHERE {weighted} IS NOT NULL AND m_stattariff2 IS NOT NULL) AS dayweighted_mae,
+                           avg(abs(cast({additional} AS DOUBLE)-cast(package_additional_rate AS DOUBLE)))
+                             FILTER (WHERE {additional} IS NOT NULL AND package_additional_rate IS NOT NULL) AS additional_mae,
+                           avg(abs(cast({weighted} AS DOUBLE)-cast(package_additional_rate AS DOUBLE)))
+                             FILTER (WHERE {weighted} IS NOT NULL AND package_additional_rate IS NOT NULL) AS dayweighted_mae,
                            sum(CASE WHEN m_val > 0 AND {additional} IS NOT NULL THEN m_val ELSE 0 END) /
                              nullif(sum(CASE WHEN m_val > 0 THEN m_val ELSE 0 END), 0) AS trade_weighted_scope_share
                     FROM read_parquet('{temporary_name}')
@@ -691,8 +948,8 @@ def validate_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
         "rows": int(aggregate.get("rows", 0) or 0),
         "treatment_match": float(aggregate.get("treatment_match", 0.0) or 0.0),
         "trade_weighted_treatment_match": float(aggregate.get("trade_weighted_treatment_match", 0.0) or 0.0),
-        "additional_mae_vs_package_policy_field": float(aggregate.get("additional_mae", 0.0) or 0.0),
-        "dayweighted_additional_mae_vs_package_policy_field": float(aggregate.get("dayweighted_additional_mae", 0.0) or 0.0),
+        "additional_mae_vs_package_m_increase": float(aggregate.get("additional_mae", 0.0) or 0.0),
+        "dayweighted_additional_mae_vs_package_m_increase": float(aggregate.get("dayweighted_additional_mae", 0.0) or 0.0),
         "increment_within_10bp": float(aggregate.get("increment_within_10bp", 0.0) or 0.0),
         "increment_within_50bp": float(aggregate.get("increment_within_50bp", 0.0) or 0.0),
         "effective_month_exact_match": float(aggregate.get("effective_month_exact_match", 0.0) or 0.0),
@@ -704,8 +961,16 @@ def validate_pooled_policy(config: PipelineConfig) -> dict[str, Any]:
         "comparison_path": relative(config, comparison_path),
         "family_validation_path": relative(config, root(config) / "pooled_policy_family_validation.parquet"),
         "package_policy_used_by_builder": False,
+        "package_policy_projection": relative(config, policy_reference),
         "independent_legal_gate": False,
         "paper_compatible_gate": False,
+        "policy_comparison_contract": {
+            "independent_additional_rate_compared_to": "package.m_increase",
+            "independent_day_weighted_rate_compared_to": "package.m_increase_diagnostic_only",
+            "family_scope_compared_to": "package.m_<family>_hit",
+            "total_statutory_rate": "not_compared_until_base_rate_scope_is_audited",
+            "timing": "independent_legal_effective_month_compared_to_package.m_effective_mdate1; paper-compatible timing remains separate",
+        },
         "ready_for_full_historical_replication_rerun": False,
         "ready_for_2025_policy_extension": False,
         "event_2025_ready": False,

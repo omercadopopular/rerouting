@@ -12,4 +12,4 @@ def test_extension_partition_is_monthly_and_separate_from_staging():
         analysis_dir = Path("data/analysis/passthru_data")
 
     path = _partition(Dummy(), "imports", "2025-12")
-    assert path.as_posix().endswith("extension_v1/flow=imports/year=2025/month=12/part.parquet")
+    assert path.as_posix().endswith("extension_v4_cif/flow=imports/year=2025/month=12/part.parquet")

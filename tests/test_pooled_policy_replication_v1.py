@@ -6,6 +6,8 @@ from scr.passthru_data.pooled_policy_replication_v1 import (
     _active_share,
     _family_components,
     _family_source_status,
+    _rule_relevant_in_window,
+    _rule_role,
 )
 from scr.passthru_data.build_us_products_partner_panel import _rule_family
 
@@ -95,3 +97,15 @@ def test_zero_rate_rows_are_not_treatment_actions() -> None:
         }]
     )
     assert _family_components(actions)["additional_rate"].tolist() == [0.20]
+
+
+def test_rule_roles_distinguish_conditional_and_transitional_rules() -> None:
+    assert _rule_role("99038061", "qualifying contract excluded from quota") == "conditional_entry_exception"
+    assert _rule_role("99038809", "entered for consumption before June 15, 2019") == "transitional_entry_rule"
+    assert _rule_role("99034501", "washing machines") == "universal_additional_duty"
+
+
+def test_transitional_china_rule_does_not_block_paper_window() -> None:
+    assert not _rule_relevant_in_window("99038809", "", pd.Timestamp("2017-01-01"), pd.Timestamp("2019-04-30"))
+    assert _rule_relevant_in_window("99038809", "", pd.Timestamp("2019-05-01"), pd.Timestamp("2019-06-30"))
+    assert not _rule_relevant_in_window("99038815", "", pd.Timestamp("2017-01-01"), pd.Timestamp("2019-04-30"))

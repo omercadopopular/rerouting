@@ -461,3 +461,20 @@ China/washer rules lack HS8 scope links. The family-status and missing-source
 manifests identify the exact rules. The pooled comparison is diagnostic only;
 it does not authorize a historical regression rerun, Section 301 v5, or the
 2025 event study.
+
+### 2026-07-20 corrected policy-field comparison and archive gates
+
+The pooled validator now extracts the authors' `m_increase`,
+`m_effective_mdate1/2`, and family-hit fields from the DTA in chunks. It
+compares independent additional rates with `m_increase`, family scope with
+`m_<family>_hit`, and legal dates with `m_effective_mdate1`; it no longer
+compares an additional rate with a total/day-scaled statutory field. The
+pooled gate remains failed: treatment match `0.986741`, trade-weighted match
+`0.975572`, additional-rate MAE `0.029182`, and legal-month match `0.432395`.
+
+The package/PDF and raw point-estimate gates remain passed. The event
+duty-inclusive bridge confidence-interval diagnostic remains below its
+registered threshold, so Section 301 v5 is not estimated. The raw extension
+inventory has exact hashes for all 156 import and 156 export archives. ZIP
+reconciliation, fixed-width quantity/duty tokens, and native concordance
+audits are separate gates; no 2025 policy or event study is estimated.

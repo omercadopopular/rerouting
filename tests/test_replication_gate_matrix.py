@@ -16,7 +16,8 @@ def test_gate_matrix_separates_trade_and_policy_readiness():
     assert payload["cpi_data_preserved_for_future_use"] is True
     assert payload["historical_paper_policy_variable_gate"] == "passed"
     assert payload["historical_paper_policy_curve_gate"] == "passed"
-    assert payload["historical_replication_methodology_lock"] is True
+    assert payload["historical_pooled_policy_gate"] == "failed"
+    assert payload["historical_replication_methodology_lock"] is False
     assert payload["independent_2018_final_legal_variable_gate"] == "passed"
     assert payload["forward_2025_policy_ledger_gate"] == "failed"
     assert payload["section301_v5_ready"] is False

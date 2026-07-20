@@ -24,10 +24,11 @@ from .io_utils import iter_months, normalize_hs_code, normalize_period, sha256_f
 
 
 VERSION = "extension_archive_validation_v1"
+SOURCE_EXTENSION = "extension_v4_cif"
 
 
 def _partition(config: PipelineConfig, flow: str, period: str) -> Path:
-    return config.analysis_dir / "extension_v1" / f"flow={flow}" / f"year={period[:4]}" / f"month={period[5:7]}" / "part.parquet"
+    return config.analysis_dir / SOURCE_EXTENSION / f"flow={flow}" / f"year={period[:4]}" / f"month={period[5:7]}" / "part.parquet"
 
 
 def _validate_one(config: PipelineConfig, flow: str, period: str) -> dict[str, Any]:
@@ -52,8 +53,10 @@ def _validate_one(config: PipelineConfig, flow: str, period: str) -> dict[str, A
         cty = chunk["cty_code"].astype("string").str.strip()
         hs_missing += int(hs.isna().sum())
         country_missing += int((cty.isna() | cty.eq("")).sum())
-        trade = pd.to_numeric(chunk["trade_value"], errors="coerce")
-        quantity = pd.to_numeric(chunk["quantity"], errors="coerce")
+        source_value_column = "gen_cif_mo" if flow == "imports" else "trade_value"
+        trade = pd.to_numeric(chunk[source_value_column], errors="coerce")
+        source_quantity_column = "gen_qy1_mo" if flow == "imports" else "quantity"
+        quantity = pd.to_numeric(chunk[source_quantity_column], errors="coerce")
         trade_total += float(trade.sum(min_count=1) or 0.0)
         quantity_missing += int(quantity.isna().sum())
         quantity_zero += int(quantity.eq(0).sum())
@@ -65,8 +68,9 @@ def _validate_one(config: PipelineConfig, flow: str, period: str) -> dict[str, A
                 duty_rows += int(duty.notna().sum())
     con = duckdb.connect(database=":memory:")
     try:
+        output_value_column = "gen_cif_mo" if flow == "imports" else "trade_value"
         output_rows, output_total, output_missing, output_zero, output_dups = con.execute(
-            """SELECT count(*), sum(trade_value), count(*) FILTER (WHERE quantity_missing),
+            f"""SELECT count(*), sum({output_value_column}), count(*) FILTER (WHERE quantity_missing),
                       count(*) FILTER (WHERE quantity_zero),
                       count(*) - count(DISTINCT (partner_code, hs10, year, month))
                FROM read_parquet(?)""", [str(partition)]
@@ -91,7 +95,7 @@ def _validate_one(config: PipelineConfig, flow: str, period: str) -> dict[str, A
 
 
 def validate_trade_extension(config: PipelineConfig, *, start_period: str = "2013-01", end_period: str = "2025-12", flows: tuple[str, ...] = ("imports", "exports"), periods: tuple[str, ...] | None = None, workers: int = 1) -> dict[str, Any]:
-    verification = config.verification_dir / "extension_v1" / "archive_validation"
+    verification = config.verification_dir / SOURCE_EXTENSION / "archive_validation"
     verification.mkdir(parents=True, exist_ok=True)
     selected_periods = tuple(periods) if periods else tuple(iter_months(start_period, end_period))
     jobs = [(flow, period) for flow in flows for period in selected_periods]
@@ -109,6 +113,9 @@ def validate_trade_extension(config: PipelineConfig, *, start_period: str = "201
         "flows": list(flows), "months": len(rows), "passed_months": int((frame["status"] == "passed").sum()),
         "failed_months": int((frame["status"] != "passed").sum()),
         "value_reconciliation_failures": int((~frame["value_reconciliation_pass"].fillna(False)).sum()),
+        "source_value_fields": {"imports": "gen_cif_mo", "exports": "trade_value"},
+        "source_quantity_fields": {"imports": "gen_qy1_mo", "exports": "quantity"},
+        "extension_namespace": SOURCE_EXTENSION,
         "output_path": _repo_relative(config, verification / "extension_archive_validation.parquet"),
         "status": "passed" if not frame.empty and bool((frame["status"] == "passed").all()) else "failed",
     }

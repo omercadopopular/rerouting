@@ -183,3 +183,13 @@ steel's qualifying-contract `99038061` and China `99038809/15/16` remain
 unresolved. The pooled panel is still diagnostic and independent policy release
 remains blocked. The package-only historical estimator and raw-trade extension
 gates are unaffected by this independent-policy status.
+
+## 2026-07-20 evidence separation
+
+The methodology lock now requires the independently sourced pooled 201/232/301
+policy comparison as well as the package/PDF and raw-outcome gates. The pooled
+policy gate is not passed: the package-policy projection is used only as a
+labeled validation anchor, while independent actions remain source-built.
+The raw-trade extension is being checked directly against all local ZIPs;
+quantity semantics, duty preservation, native concordances, and CPI-real
+values remain separate readiness decisions.

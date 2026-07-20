@@ -747,3 +747,32 @@ reported in the versioned Parquet/JSON outputs. These values must not be used
 to claim independent policy replication. Completion of the official 201/232
 scope ledger remains the blocker for an independently constructed policy
 variable.
+## 2026-07-20 — pooled historical policy audit and extension gate separation
+
+The pooled 201/232/301 reconstruction was rebuilt after auditing the local
+Chapter-99 rules by legal role and historical window. Conditional-entry rule
+99038061 and transitional China rule 99038809 are no longer counted as missing
+universal HS8 scope in the 2017-01--2019-04 paper window; rules 99038815 and
+99038816 are forward-historical rules outside that window. The resulting
+source-only action ledger contains 2,092,985 actions and reports no missing
+family scope in the historical inventory.
+
+The validator now compares independent additional rates to the package
+`m_increase` field and family scope to package `m_<family>_hit` flags. It uses a
+chunked, explicitly labeled DTA projection for validation only. It does not
+compare independent additions to package total/day-scaled statutory rates, and
+it does not use package fields to build the independent panel. On 4,199,002
+package-common rows, treatment match is 0.986741, trade-weighted treatment
+match is 0.975572, additional-rate MAE is 0.029182, and exact legal-month match
+to package `m_effective_mdate1` is 0.432395. These diagnostics do not pass the
+pooled policy gate; the package-compatible Section 301 calendar remains a
+separate historical reproduction object.
+
+The package estimator/PDF gate and raw-outcome point-estimate gate remain
+passed. The event duty-inclusive bridge still has a registered confidence
+interval-overlap failure, so Section 301 v5 empirical sensitivity remains
+blocked. The raw-trade extension has all local 2013-01--2025-12 staging
+partitions and is being validated against the source ZIP archives; archive,
+quantity, duty-field, and native-concordance gates remain separate. CPI files
+are retained for future real-value work and are not required for nominal
+Figures 2 or 4a.

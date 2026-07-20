@@ -37,6 +37,8 @@ def build_methodology_lock(config: PipelineConfig) -> dict[str, Any]:
     paper_encoding = _load(policy_root / "paper_compatibility_event_encoding_gate.json")
     legal_variable = _load(policy_root / "section301_variable_gate.json")
     policy_curve = _load(policy_root / "regressions" / "section301_policy_curve_gate.json")
+    pooled_policy_root = config.verification_dir / "raw_replication_imports" / "pooled_policy_replication_v1"
+    pooled_policy = _load(pooled_policy_root / "pooled_policy_replication_gate.json")
     missing_policy_sources = _load(policy_root / "paper_compatibility_missing_sources.json")
     policy_2025 = _load(
         config.verification_dir
@@ -56,7 +58,10 @@ def build_methodology_lock(config: PipelineConfig) -> dict[str, Any]:
         and package.get("completed_fit_count") == 8
         and package.get("package_pdf_gate") == "passed"
     )
-    historical_policy_gate = bool(policy_curve.get("historical_policy_methodology_locked"))
+    historical_policy_gate = bool(
+        policy_curve.get("historical_policy_methodology_locked")
+        and pooled_policy.get("paper_compatible_gate") is True
+    )
     historical_lock = bool(package_gate and bridge_point_gate and historical_policy_gate)
     forward_policy_gate = policy_2025.get("independent_policy_gate", "failed")
 
@@ -68,6 +73,7 @@ def build_methodology_lock(config: PipelineConfig) -> dict[str, Any]:
         "paper_compatible_policy_variable_gate": paper_variable.get("status", "pending"),
         "paper_compatible_event_encoding_gate": paper_encoding.get("status", "pending"),
         "paper_compatible_policy_curve_gate": "passed" if policy_curve.get("paper_compatible_point_estimate_curve_gate_passed") else "failed",
+        "historical_pooled_policy_gate": "passed" if pooled_policy.get("paper_compatible_gate") is True else "failed",
         "historical_replication_methodology_lock": "passed" if historical_lock else "failed",
         "independent_2018_final_legal_variable_gate": legal_variable.get("status", "pending"),
         "forward_2025_policy_ledger_gate": forward_policy_gate,
@@ -107,6 +113,8 @@ def build_methodology_lock(config: PipelineConfig) -> dict[str, Any]:
             "paper_compatible_variable_gate": paper_variable,
             "paper_compatible_event_encoding_gate": paper_encoding,
             "historical_curve_gate_manifest": str((policy_root / "regressions" / "section301_policy_curve_gate.json").relative_to(config.repo_root)).replace("\\", "/"),
+            "pooled_policy_gate_manifest": str((pooled_policy_root / "pooled_policy_replication_gate.json").relative_to(config.repo_root)).replace("\\", "/"),
+            "pooled_policy_gate": pooled_policy,
             "independent_2018_final_legal_variable_gate": legal_variable,
             "paper_compatible_uses_validation_derived_reconciliation": True,
             "paper_compatible_is_independent_legal_evidence": False,
@@ -142,7 +150,7 @@ def build_methodology_lock(config: PipelineConfig) -> dict[str, Any]:
             "",
             "## Interpretation",
             "",
-            "The lock covers the original-period U.S. import results in Figures 2 and 4a. It requires the package estimator, raw Census outcome point estimates, and the reconstructed paper-compatible Section 301 assignment to pass their separate gates.",
+            "The lock covers the original-period U.S. import results in Figures 2 and 4a. It requires the package estimator, raw Census outcome point estimates, the reconstructed paper-compatible Section 301 assignment, and the independently sourced pooled 201/232/301 policy comparison to pass their separate gates.",
             "",
             "The paper-compatible schedule is a transparent historical-reproduction object. It uses official archived sources plus frozen, row-level validation-derived reconciliations for missing proposal-era annexes, the historical exclusion parser behavior, and the 2018 HTS transition. It is not labeled independent final-legal evidence.",
             "",

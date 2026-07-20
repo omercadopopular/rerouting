@@ -5,12 +5,13 @@
     "rows": 4197758
   },
   "cpi_data_preserved_for_future_use": true,
-  "created_at": "2026-07-19",
+  "created_at": "2026-07-20",
   "event_2025_ready": false,
   "forward_2025_policy_ledger_gate": "failed",
   "historical_paper_policy_curve_gate": "passed",
   "historical_paper_policy_variable_gate": "passed",
-  "historical_replication_methodology_lock": true,
+  "historical_pooled_policy_gate": "failed",
+  "historical_replication_methodology_lock": false,
   "independent_2018_final_legal_variable_gate": "passed",
   "items": {
     "common_sample_bridge_inference": "gate_failed",
@@ -21,6 +22,7 @@
     "figure_4b_export_dynamic": "blocked_missing_data",
     "forward_2025_policy_ledger": "blocked_missing_data",
     "historical_paper_compatible_section301_policy": "gate_passed",
+    "historical_pooled_201_232_301_policy": "gate_failed",
     "independent_2018_final_legal_policy": "gate_passed",
     "raw_trade_extension_2025": "validated_nominal_archive_native"
   },
@@ -87,9 +89,14 @@
       "status": "not_required_for_replication"
     },
     {
-      "detail": "paper-compatible source-vintage assignment and point-estimate substitution curves",
-      "specification": "historical_paper_policy",
+      "detail": "paper-compatible Section 301 source-vintage assignment and substitution curves",
+      "specification": "historical_section301_policy",
       "status": "passed"
+    },
+    {
+      "detail": "independent pooled family scope/rate/timing comparison; not promoted while rate or calendar diagnostics fail",
+      "specification": "historical_pooled_201_232_301_policy",
+      "status": "failed"
     },
     {
       "detail": "final legal scope/date/rate variable diagnostic; legal-calendar curves are not expected to match paper timing",
