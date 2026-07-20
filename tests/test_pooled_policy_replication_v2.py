@@ -7,6 +7,7 @@ from scr.passthru_data.pooled_policy_replication_v2 import (
     PAPER_OBJECT,
     PACKAGE_OBJECT,
     family_source_status,
+    rule_inventory,
     rule_role,
     select_stack_action,
     source_confidence,
@@ -112,3 +113,12 @@ def test_family_status_reports_conditional_quota_as_blocked() -> None:
 def test_specification_fingerprint_is_stable() -> None:
     assert specification_fingerprint() == specification_fingerprint()
     assert len(specification_fingerprint()) == 64
+
+
+def test_rule_inventory_labels_unresolved_quota_without_zero() -> None:
+    attrs = pd.DataFrame(
+        [{"rule_code": "99034501", "year": 2018, "increment_rate": 0.20}]
+    )
+    inventory = rule_inventory(attrs, pd.DataFrame())
+    assert inventory.loc[0, "decision"] == "conditional_unresolved_entry_allocation"
+    assert inventory.loc[0, "min_rate"] == 0.20

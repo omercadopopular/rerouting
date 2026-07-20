@@ -337,6 +337,40 @@ def stale_manifest(config: PipelineConfig) -> dict[str, Any]:
     }
 
 
+def rule_inventory(attrs: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """Return a compact source/rule inventory for the next review pass."""
+    if attrs.empty:
+        return pd.DataFrame(columns=["rule_code", "family", "legal_role", "scope_rows", "decision"])
+    frame = attrs.copy()
+    frame["rule_code"] = frame["rule_code"].map(lambda x: normalize_hs_code(x, 8))
+    rows: list[dict[str, Any]] = []
+    for code, group in frame.groupby("rule_code", dropna=True):
+        if not code:
+            continue
+        family = v1._rule_family(str(code))
+        role = rule_role(code, group.get("description", pd.Series(dtype="string")).dropna().iloc[0] if "description" in group and group["description"].notna().any() else "")
+        scope_rows = int((links[links["rule_code"].eq(code)]).shape[0]) if not links.empty else 0
+        if role == "quota_or_trq_alternative":
+            decision = "conditional_unresolved_entry_allocation"
+        elif scope_rows == 0 and role == "universal_additional_duty":
+            decision = "blocked_missing_structural_scope"
+        else:
+            decision = "eligible_for_family_review"
+        rows.append({
+            "rule_code": str(code),
+            "family": family,
+            "legal_role": role,
+            "min_source_year": int(pd.to_numeric(group["year"], errors="coerce").min()) if "year" in group else None,
+            "max_source_year": int(pd.to_numeric(group["year"], errors="coerce").max()) if "year" in group else None,
+            "distinct_rates": int(group["increment_rate"].nunique(dropna=True)) if "increment_rate" in group else 0,
+            "min_rate": float(pd.to_numeric(group["increment_rate"], errors="coerce").min()) if "increment_rate" in group else None,
+            "max_rate": float(pd.to_numeric(group["increment_rate"], errors="coerce").max()) if "increment_rate" in group else None,
+            "scope_rows": scope_rows,
+            "decision": decision,
+        })
+    return pd.DataFrame(rows).sort_values(["family", "rule_code"]).reset_index(drop=True)
+
+
 def build_preflight(config: PipelineConfig) -> dict[str, Any]:
     out = root(config)
     write_metadata_json(out / "pooled_policy_v1_stale_manifest.json", stale_manifest(config))
@@ -350,6 +384,7 @@ def build_preflight(config: PipelineConfig) -> dict[str, Any]:
     links = source_qualified_links(config)
     statuses = family_source_status(links, attrs)
     write_parquet(links, out / "source_qualified_scope_links.parquet", overwrite=True)
+    write_parquet(rule_inventory(attrs, links), out / "rule_inventory.parquet", overwrite=True)
     write_metadata_json(out / "family_source_status.json", {
         "version": VERSION,
         "families": statuses,
