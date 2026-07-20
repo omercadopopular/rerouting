@@ -39,7 +39,9 @@ from .build_us_products_partner_panel import (
     _load_tradewar_pdf_links,
     _load_tradewar_rule_attributes,
     _rule_family,
+    RULE_FAMILY_BY_RULE,
 )
+from .policy_replication_v2 import extract_pdf_text
 
 
 VERSION = "pooled_policy_replication_v1"
@@ -58,10 +60,10 @@ FAMILY_LABELS = {
     "china_301": "section301_china",
 }
 EXPECTED_POSITIVE_RULE_PREFIXES = {
-    "solar_201": ("990346",),
-    "washer_201": ("990345",),
+    "solar_201": ("99034522", "99034525"),
+    "washer_201": ("99034501", "99034502", "99034506"),
     "steel_232": ("99038001", "99038002", "99038061"),
-    "aluminum_232": ("99038501",),
+    "aluminum_232": ("99038501", "99038505", "99038506"),
     "china_301": ("990388",),
 }
 PAPER_THRESHOLDS = {
@@ -154,6 +156,14 @@ def _all_links(config: PipelineConfig) -> pd.DataFrame:
             frame = pd.DataFrame()
         if not frame.empty:
             frames.append(frame)
+    # The archived machine/PDF link cache does not enumerate the principal
+    # Section 232 note scopes.  Recover those scopes from the local HTS note
+    # text and the raw panel's HS8 universe.  This is source-derived scope,
+    # not a package-policy fallback; the source PDF and parser fingerprint are
+    # recorded in the resulting provenance columns.
+    note_links = _load_pdf_note_scope_links(config)
+    if not note_links.empty:
+        frames.append(note_links)
     if not frames:
         return pd.DataFrame(columns=["release_name", "release_start_date", "release_end_date", "hs8", "rule_code"])
     out = pd.concat(frames, ignore_index=True)
@@ -180,9 +190,100 @@ def _all_links(config: PipelineConfig) -> pd.DataFrame:
             release_name=("release_name", lambda values: "|".join(sorted(set(map(str, values))))),
             release_start_date=("release_start_date", "min"),
             release_end_date=("release_end_date", "max"),
+            scope_source=("scope_source", lambda values: "|".join(sorted(set(map(str, values))))),
         )
     )
     return out.reset_index(drop=True)
+
+
+def _load_pdf_note_scope_links(config: PipelineConfig) -> pd.DataFrame:
+    """Recover principal 232 HS8 scopes from the local 2018 HTS notes.
+
+    Notes 16 and 19 enumerate headings rather than every statistical suffix.
+    Expanding those headings against the raw panel's observed HS8 universe is
+    deterministic and preserves the native HS8 codes.  The source is kept
+    explicit so these links are auditable and cannot be mistaken for package
+    policy values.
+    """
+    pdf = config.raw_dir / "policy" / "archive" / "pdf" / "2018HTSARevision12.pdf"
+    panel = config.analysis_dir / "us_products_partner_hs10_monthly.parquet"
+    if not pdf.exists() or not panel.exists():
+        return pd.DataFrame()
+    try:
+        import duckdb
+        escaped = str(panel).replace("'", "''")
+        hs8 = duckdb.connect().execute(
+            f"SELECT DISTINCT lpad(cast(hs8 AS varchar), 8, '0') AS hs8 "
+            f"FROM read_parquet('{escaped}') WHERE hs8 IS NOT NULL"
+        ).fetchdf()["hs8"].astype(str).tolist()
+    except Exception:
+        return pd.DataFrame()
+    try:
+        text = extract_pdf_text(pdf)
+    except Exception:
+        return pd.DataFrame()
+    normalized = text.lower()
+    steel_anchor = normalized.find("the r ates of duty set f or th in headings 9903.80.01")
+    aluminum_anchor = normalized.find("alumin um products of all countr ies", 12_000_000)
+    if steel_anchor < 0 or aluminum_anchor < 0:
+        return pd.DataFrame()
+    steel_block = text[steel_anchor : steel_anchor + 6_000]
+    aluminum_block = text[aluminum_anchor : aluminum_anchor + 7_000]
+    steel_headings = set(re.findall(r"(?<!\d)(7[23]\d{2})(?!\d)", steel_block))
+    aluminum_headings = set(re.findall(r"(?<!\d)(7[56]\d{2})(?!\d)", aluminum_block))
+    # The text parser above may retain spaces around punctuation; normalize
+    # the explicitly excluded subheadings and the sole aluminum 7616 line.
+    steel_excluded = {"72166100", "72166900", "72169100"}
+    aluminum_exact = {"76169951"}
+    rows: list[dict[str, Any]] = []
+    for code in sorted(set(hs8)):
+        if len(code) != 8 or not code.isdigit():
+            continue
+        heading = code[:4]
+        steel_hit = False
+        if heading in steel_headings:
+            if heading == "7216":
+                steel_hit = code not in steel_excluded
+            elif heading == "7301":
+                steel_hit = code.startswith("730110")
+            elif heading == "7302":
+                steel_hit = code.startswith("730210") or code in {"73024000", "73029000"}
+            else:
+                steel_hit = True
+        if steel_hit:
+            for rule in ("99038001", "99038002"):
+                rows.append({
+                    "release_name": pdf.stem,
+                    "release_start_date": pd.Timestamp("2018-03-23"),
+                    "release_end_date": pd.Timestamp("2019-12-31"),
+                    "hs8": code,
+                    "rule_code": rule,
+                    "scope_source": "local_hts_note_16_heading_expansion",
+                })
+        aluminum_hit = heading in aluminum_headings or code in aluminum_exact
+        if aluminum_hit:
+            for rule in ("99038501", "99038505", "99038506"):
+                rows.append({
+                    "release_name": pdf.stem,
+                    "release_start_date": pd.Timestamp("2018-03-23"),
+                    "release_end_date": pd.Timestamp("2019-12-31"),
+                    "hs8": code,
+                    "rule_code": rule,
+                    "scope_source": "local_hts_note_19_heading_expansion",
+                })
+        # Note 17(f) defines the positive parts line explicitly as the two
+        # statistical subheadings below.  Recover it from the local note text
+        # rather than treating all of chapter 84 as washer parts.
+        if code.startswith(("84509020", "84509060")) and "9903.45.06" in normalized:
+            rows.append({
+                "release_name": pdf.stem,
+                "release_start_date": pd.Timestamp("2018-02-07"),
+                "release_end_date": pd.Timestamp("2019-12-31"),
+                "hs8": code,
+                "rule_code": "99034506",
+                "scope_source": "local_hts_note_17_parts_subheading",
+            })
+    return pd.DataFrame(rows)
 
 
 def _expand_actions(config: PipelineConfig, links: pd.DataFrame, attrs: pd.DataFrame) -> pd.DataFrame:
@@ -263,7 +364,7 @@ def _expand_actions(config: PipelineConfig, links: pd.DataFrame, attrs: pd.DataF
             "additional_rate": rate,
             "day_weighted_additional_rate": rate * active_days / days_in_month,
             "release_name": str(row.get("release_name") or ""),
-            "source_scope": "local_hts_chapter99_machine_or_pdf",
+            "source_scope": str(row.get("scope_source") or "local_hts_chapter99_machine_or_pdf"),
         } for country in eligible)
     if not rows:
         return pd.DataFrame()
@@ -302,17 +403,15 @@ def _family_source_status(links: pd.DataFrame, attrs: pd.DataFrame) -> dict[str,
     linked_rules = set(links.get("rule_code", pd.Series(dtype="string")).dropna().astype(str))
     attributed_rules = set(attrs.get("rule_code", pd.Series(dtype="string")).dropna().astype(str))
     statuses: dict[str, dict[str, Any]] = {}
-    family_prefix = {
-        "solar_201": "990346",
-        "washer_201": "990345",
-        "steel_232": "990380",
-        "aluminum_232": "990385",
-        "china_301": "990388",
-    }
     for family in FAMILIES:
-        prefix = family_prefix[family]
-        family_links = {code for code in linked_rules if code.startswith(prefix)}
-        family_attrs = {code for code in attributed_rules if code.startswith(prefix)}
+        family_codes = {
+            code for code, mapped_family in RULE_FAMILY_BY_RULE.items()
+            if mapped_family == family
+        }
+        if family == "china_301":
+            family_codes |= {code for code in linked_rules | attributed_rules if code.startswith("990388")}
+        family_links = {code for code in linked_rules if code in family_codes}
+        family_attrs = {code for code in attributed_rules if code in family_codes}
         positive_rules = sorted(
             code for code in family_attrs
             if (float(attrs.loc[attrs["rule_code"].astype(str).eq(code), "increment_rate"].max())

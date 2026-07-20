@@ -7,6 +7,16 @@ from scr.passthru_data.pooled_policy_replication_v1 import (
     _family_components,
     _family_source_status,
 )
+from scr.passthru_data.build_us_products_partner_panel import _rule_family
+
+
+def test_section201_rule_family_uses_exact_chapter99_codes() -> None:
+    assert _rule_family("99034501") == "washer_201"
+    assert _rule_family("99034502") == "washer_201"
+    assert _rule_family("99034506") == "washer_201"
+    assert _rule_family("99034522") == "solar_201"
+    assert _rule_family("99034525") == "solar_201"
+    assert _rule_family("99034601") == "other"
 
 
 def test_active_share_uses_inclusive_legal_days() -> None:

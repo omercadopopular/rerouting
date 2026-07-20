@@ -186,18 +186,33 @@ def _extract_countries_from_rule(description: str, rule_code: str | None = None)
     return include, exclude
 
 
+# Chapter-99 headings are not one-family-per-prefix.  In particular, the
+# 201 safeguard lines for solar products are 9903.45.22 and 9903.45.25,
+# while the washer lines are 9903.45.01/.02/.06.  Keep this mapping explicit
+# and source-auditable rather than assigning a family from a broad prefix.
+RULE_FAMILY_BY_RULE = {
+    "99034501": "washer_201",
+    "99034502": "washer_201",
+    "99034506": "washer_201",
+    "99034522": "solar_201",
+    "99034525": "solar_201",
+    "99038001": "steel_232",
+    "99038002": "steel_232",
+    "99038061": "steel_232",
+    "99038501": "aluminum_232",
+    "99038505": "aluminum_232",
+    "99038506": "aluminum_232",
+}
+
+
 def _rule_family(rule_code: str) -> str:
-    rule = str(rule_code or "")
+    rule = str(rule_code or "").replace(".", "").strip()
+    if rule in RULE_FAMILY_BY_RULE:
+        return RULE_FAMILY_BY_RULE[rule]
+    # Section 301 has a stable China-specific Chapter-99 family.  Other
+    # 232/201 headings remain unclassified until their source note is audited.
     if rule.startswith("990388"):
         return "china_301"
-    if rule.startswith("990380"):
-        return "steel_232"
-    if rule.startswith("990385"):
-        return "aluminum_232"
-    if rule.startswith("990345"):
-        return "washer_201"
-    if rule.startswith("990346"):
-        return "solar_201"
     return "other"
 
 
@@ -779,8 +794,10 @@ def _parse_pdf_rule_hs_links(pdf_path: str) -> pd.DataFrame:
                 return major == "16"
             if rule_code.startswith("990385"):
                 return major == "19"
-            if rule_code.startswith("990345") or rule_code.startswith("990346"):
-                return major in {"17", "18"}
+            if rule_code in {"99034501", "99034502", "99034506"}:
+                return major == "17"
+            if rule_code in {"99034522", "99034525"}:
+                return major == "18"
             return True
 
         for pattern in note_rule_patterns:
