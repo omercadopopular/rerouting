@@ -4,7 +4,7 @@
     "historical_replication_role": "not_required_for_replication",
     "nominal_values_are_canonical": true
   },
-  "created_at_utc": "2026-07-20T20:11:26.613009+00:00",
+  "created_at_utc": "2026-07-20T21:25:44.769594+00:00",
   "figures": {
     "dynamic_pdf": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_dynamic.pdf",
     "dynamic_png": "data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_dynamic.png",
@@ -185,10 +185,10 @@
       "version": "section301_policy_replication_v2_paper_compatibility"
     },
     "pooled_policy_gate": {
-      "additional_mae_vs_package_m_increase": 0.02918227731632904,
+      "additional_mae_vs_package_m_increase": 0.029182277316329015,
       "comparison_path": "data/verification/passthru_data/raw_replication_imports/pooled_policy_replication_v1/pooled_policy_validation_comparison.parquet",
-      "dayweighted_additional_mae_vs_package_m_increase": 0.029231746706018854,
-      "effective_month_exact_match": 0.021848225214198286,
+      "dayweighted_additional_mae_vs_package_m_increase": 0.02923174670601886,
+      "effective_month_exact_match": 0.43239494084047325,
       "event_2025_ready": false,
       "family_validation_path": "data/verification/passthru_data/raw_replication_imports/pooled_policy_replication_v1/pooled_policy_family_validation.parquet",
       "increment_within_10bp": 0.8076997819958172,
@@ -196,18 +196,25 @@
       "independent_legal_gate": false,
       "missing_families": [],
       "note": "Initial pooled comparison is diagnostic; family-specific rate and timing validation must be completed before release.",
-      "package_policy_projection": "data/verification/passthru_data/raw_replication_imports/pooled_policy_replication_v1/package_policy_projection.parquet",
+      "package_policy_projection": "data/verification/passthru_data/raw_replication_imports/pooled_policy_replication_v1/package_policy_projection_v2.parquet",
       "package_policy_used_by_builder": false,
       "paper_compatible_gate": false,
       "paper_month_within_one_match": 0.4346185230518156,
+      "policy_comparison_contract": {
+        "family_scope_compared_to": "package.m_<family>_hit",
+        "independent_additional_rate_compared_to": "package.m_increase",
+        "independent_day_weighted_rate_compared_to": "package.m_increase_diagnostic_only",
+        "timing": "independent_legal_effective_month_compared_to_package.m_effective_mdate1; paper-compatible timing remains separate",
+        "total_statutory_rate": "not_compared_until_base_rate_scope_is_audited"
+      },
       "ready_for_2025_policy_extension": false,
       "ready_for_full_historical_replication_rerun": false,
       "rows": 4199002,
       "status": "diagnostic_complete",
       "total_rate_comparison": "not_evaluated_until_base_statutory_scope_is_resolved",
       "trade_weighted_comparable_share": 1.0,
-      "trade_weighted_dayweighted_mae": 0.03373863816063358,
-      "trade_weighted_treatment_match": 0.9755721673124562,
+      "trade_weighted_dayweighted_mae": 0.03373863816063382,
+      "trade_weighted_treatment_match": 0.975572167312457,
       "treatment_match": 0.9867408970036213,
       "version": "pooled_policy_replication_v1"
     },

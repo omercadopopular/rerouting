@@ -11,7 +11,7 @@ def test_gate_matrix_separates_trade_and_policy_readiness():
     assert payload["raw_outcome_inference_diagnostic"] == "failed"
     assert payload["raw_trade_archive_ingestion_gate"] == "passed"
     assert payload["raw_trade_staging_reconciliation_gate"] == "passed"
-    assert payload["raw_trade_quantity_semantics_gate"] == "pending"
+    assert payload["raw_trade_quantity_semantics_gate"] == "passed"
     assert payload["raw_trade_real_value_gate"] == "not_required_for_replication"
     assert payload["cpi_data_preserved_for_future_use"] is True
     assert payload["historical_paper_policy_variable_gate"] == "passed"

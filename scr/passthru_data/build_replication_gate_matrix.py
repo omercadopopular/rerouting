@@ -35,7 +35,15 @@ def build_gate_matrix(config: PipelineConfig) -> dict[str, Any]:
     extension = _load(config.verification_dir / "extension_v4_cif" / "extension_build_manifest.json")
     staging = _load(config.verification_dir / "extension_v4_cif" / "extension_build_manifest.json")
     archive_validation = _load(config.verification_dir / "extension_v4_cif" / "archive_validation" / "extension_archive_validation_manifest.json")
-    native = _load(config.verification_dir / "extension_native_concordance_audit_v1" / "extension_native_concordance_manifest.json")
+    # The native auditor currently writes into the established extension_v3
+    # verification namespace.  Keep a separate-namespace fallback for older
+    # runs, but never report the gate as absent when the canonical v3 manifest
+    # is present.
+    native_candidates = (
+        config.verification_dir / "extension_v3" / "extension_native_concordance_manifest.json",
+        config.verification_dir / "extension_native_concordance_audit_v1" / "extension_native_concordance_manifest.json",
+    )
+    native = next((_load(path) for path in native_candidates if path.exists()), {})
     quantity_tokens = _load(config.verification_dir / "extension_v3" / "extension_quantity_token_manifest.json")
     policy_2025 = _load(config.verification_dir / "policy_2025_preflight" / "policy_2025_preflight_manifest.json")
     historical_policy_root = config.verification_dir / "raw_replication_imports" / "policy_replication_v2"

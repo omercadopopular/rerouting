@@ -1,6 +1,6 @@
 # Historical replication methodology lock v2
 
-Generated from canonical manifests on 2026-07-20T20:11:26.613009+00:00.
+Generated from canonical manifests on 2026-07-20T21:25:44.769594+00:00.
 
 Overall historical lock: **failed**.
 

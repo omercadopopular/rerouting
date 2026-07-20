@@ -23,7 +23,7 @@
     "forward_2025_policy_ledger": "blocked_missing_data",
     "historical_paper_compatible_section301_policy": "gate_passed",
     "historical_pooled_201_232_301_policy": "gate_failed",
-    "independent_2018_final_legal_policy": "gate_passed",
+    "independent_section301_legal_variable": "gate_passed",
     "raw_trade_extension_2025": "validated_nominal_archive_native"
   },
   "package_full_vs_common_gate": "passed",
@@ -34,7 +34,7 @@
   "raw_trade_archive_ingestion_gate": "passed",
   "raw_trade_concordance_gate": "pending",
   "raw_trade_duty_preservation_gate": "pending",
-  "raw_trade_quantity_semantics_gate": "pending",
+  "raw_trade_quantity_semantics_gate": "passed",
   "raw_trade_real_value_gate": "not_required_for_replication",
   "raw_trade_staging_reconciliation_gate": "passed",
   "rows": [
@@ -59,7 +59,7 @@
       "status": "failed"
     },
     {
-      "detail": "312 archives",
+      "detail": "312 archive flow-months",
       "specification": "raw_trade_archive_ingestion",
       "status": "passed"
     },
@@ -71,7 +71,7 @@
     {
       "detail": "source fixed-width quantity token audit",
       "specification": "raw_trade_quantity_semantics",
-      "status": "pending"
+      "status": "passed"
     },
     {
       "detail": "duty fields are present; units and source semantics require review",
@@ -79,7 +79,7 @@
       "status": "pending"
     },
     {
-      "detail": "native audit absent",
+      "detail": "pending_obsolete_mapping_parse",
       "specification": "raw_trade_concordance",
       "status": "pending"
     },
@@ -99,8 +99,8 @@
       "status": "failed"
     },
     {
-      "detail": "final legal scope/date/rate variable diagnostic; legal-calendar curves are not expected to match paper timing",
-      "specification": "independent_2018_final_legal_policy",
+      "detail": "Section 301 scope/date/increment diagnostic; total-rate legacy metrics are superseded and legal-calendar curves are not expected to match paper timing",
+      "specification": "independent_section301_legal_variable",
       "status": "passed"
     },
     {
