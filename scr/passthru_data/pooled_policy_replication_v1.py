@@ -313,16 +313,18 @@ def _family_source_status(links: pd.DataFrame, attrs: pd.DataFrame) -> dict[str,
         prefix = family_prefix[family]
         family_links = {code for code in linked_rules if code.startswith(prefix)}
         family_attrs = {code for code in attributed_rules if code.startswith(prefix)}
-        positive_missing = sorted(
+        positive_rules = sorted(
             code for code in family_attrs
-            if code not in linked_rules
-            and (float(attrs.loc[attrs["rule_code"].astype(str).eq(code), "increment_rate"].max()) if not attrs.empty and "increment_rate" in attrs else 0.0) > 0
+            if (float(attrs.loc[attrs["rule_code"].astype(str).eq(code), "increment_rate"].max())
+                if not attrs.empty and "increment_rate" in attrs else 0.0) > 0
         )
+        positive_missing = [code for code in positive_rules if code not in linked_rules]
         statuses[family] = {
             "linked_rule_count": int(len(family_links)),
             "attributed_rule_count": int(len(family_attrs)),
             "attribute_rules_without_scope_links": sorted(family_attrs - linked_rules),
             "expected_positive_rule_prefixes": list(EXPECTED_POSITIVE_RULE_PREFIXES[family]),
+            "positive_attribute_rules": positive_rules,
             "expected_positive_rules_without_scope_links": positive_missing,
             "scope_status": "complete" if family_links and family_attrs and not positive_missing else "partial_missing_positive_scope",
         }
