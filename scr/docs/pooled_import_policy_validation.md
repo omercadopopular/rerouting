@@ -49,3 +49,13 @@ The package policy projection used for this audit is a chunked extraction of
 the authors' DTA containing `m_increase`, `m_stattariff1/2`, `m_status2`,
 `m_effective_mdate1/2`, and the five family-hit flags. It is a validation anchor
 only; no package policy field is used to build the independent panel.
+
+## Pooled-policy v2 fail-closed correction
+
+Version 2 uses a separate legal/paper/package object contract and rejects the
+v1 PDF-context link cache as production scope. It reuses the independently
+audited Section 301 v2 scope and records the explicit Note 18 solar heading,
+but it does not assign quota/TRQ rates without entry-level allocation. The
+current preflight is therefore `blocked_missing_or_conditional_scope` for
+solar, washer, and aluminum. No pooled policy regression is released until
+those source and stacking decisions are resolved.

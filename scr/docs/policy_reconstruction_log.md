@@ -747,6 +747,23 @@ reported in the versioned Parquet/JSON outputs. These values must not be used
 to claim independent policy replication. Completion of the official 201/232
 scope ledger remains the blocker for an independently constructed policy
 variable.
+
+## 2026-07-20 pooled-policy v2 corrective preflight
+
+The v1 pooled outputs are now explicitly historical diagnostics. Their
+fingerprint did not cover the scientific builder, source scope, or stacking
+semantics, and the generated files predate later implementation changes. A
+new v2 namespace was created with separate `independent_legal`,
+`paper_compatible_from_legal`, and `package_reference` objects.
+
+The v2 preflight rejects broad PDF-context links, classifies quota/TRQ rules
+as conditional rather than universal, and applies replacement precedence
+before any cross-family addition. It reuses the independently audited Section
+301 v2 scope component and adds the explicit Note 18 `8541.40.60` solar
+heading. The preflight remains blocked for solar, washers, and aluminum until
+quota allocation, product scope, country exemptions, and paper-compatible
+rate semantics are independently resolved. No pooled regression was run and
+no package variable was copied into v2.
 ## 2026-07-20 — pooled historical policy audit and extension gate separation
 
 The pooled 201/232/301 reconstruction was rebuilt after auditing the local

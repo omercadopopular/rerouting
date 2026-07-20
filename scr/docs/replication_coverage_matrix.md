@@ -16,6 +16,7 @@ Generated from canonical manifests on 2026-07-20.
 | raw_trade_real_values | `not_required_for_replication` | nominal values are canonical; local CPI data are preserved for future analysis |
 | historical_section301_policy | `passed` | paper-compatible Section 301 source-vintage assignment and substitution curves |
 | historical_pooled_201_232_301_policy | `failed` | independent pooled family scope/rate/timing comparison; not promoted while rate or calendar diagnostics fail |
+| pooled_policy_v2_preflight | `blocked_missing_data` | fail-closed source-qualified reconstruction; solar, washer, and aluminum quota/product semantics remain unresolved |
 | independent_section301_legal_variable | `passed` | Section 301 scope/date/increment diagnostic; total-rate legacy metrics are superseded and legal-calendar curves are not expected to match paper timing |
 | forward_2025_policy_ledger | `failed` | 2025 official ledger sources remain incomplete |
 

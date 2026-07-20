@@ -241,3 +241,14 @@ Canonical diagnostic figures are generated under:
 - `data/verification/passthru_data/raw_replication_imports/policy_replication_v2/regressions/figures/section301_policy_substitution_dynamic.png`.
 
 These are generated evidence and are not committed. The scripts, frozen specifications, tests, and this construction document are committed so the figures can be regenerated.
+
+## 2026-07-20 pooled-policy v2 correction
+
+The pooled 201/232/301 policy layer is not yet locked. Version 2 separates
+legal-effective rates from the paper-compatible monthly treatment transformation
+and keeps authors' package variables as validation targets only. The current
+fail-closed preflight identifies unresolved quota/TRQ semantics for solar,
+washers, and aluminum. Existing v1 panels remain historical diagnostics and
+must not be resumed. The raw trade extension through 2025 remains usable as a
+nominal, policy-free data layer; it does not imply that the independent tariff
+ledger or a 2025 event study is ready.
