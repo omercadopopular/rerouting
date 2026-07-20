@@ -19,7 +19,7 @@ The package variables are never used to populate an independent policy field.
 
 ## Audit result on 2026-07-20
 
-The software suite passes (`151 passed, 7 warnings` after adding the v2 unit
+The software suite passes (`152 passed, 7 warnings` after adding the v2 unit
 tests), but the pooled policy preflight is correctly blocked. The current v2
 source-qualified ledger has complete structural scope for the universal rules
 that are locally identifiable, but unresolved quota/TRQ allocation remains for
