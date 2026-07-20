@@ -705,6 +705,24 @@ The 24-fit policy-substitution run validates all checkpoints and locks the histo
 
 This establishes a reproducible historical paper-compatible methodology, not an independently complete 2025 ledger. The 2018 validation-derived corrections must not be carried into 2025 without new official sources.
 
+## 2026-07-20 exact family and HTS-note scope correction
+
+The first pooled 201/232/301 implementation exposed a material family-labeling
+error: all `990345*` headings had been labeled washers and a nonexistent local
+`990346*` solar family had been assumed. The corrected source-audited mapping
+is `99034501/02/06` washers and `99034522/25` solar. Tests now lock these
+codes and reject the old prefix-only behavior.
+
+Using the repository's byte-level PDF decoder (no network or new PDF package),
+the build now expands principal Section 232 scopes from archived 2018 HTS
+Revision 12 notes: note 16 for steel, note 19 for aluminum, and note 17's
+explicit `8450.90.20/.60` parts scope. The resulting action counts are 13,110
+solar, 21,735 washer, 1,794,072 steel, 259,896 aluminum, and 4,172 China.
+The source-only panel remains diagnostic because the qualifying-contract steel
+rule `99038061` and China rules `99038809/15/16` still lack verified HS8
+scope. No missing scope is filled from package policy or with zero, and no
+pooled historical regression is released until those blockers are resolved.
+
 ## 2026-07-20 pooled Section 201/232/301 reconstruction attempt
 
 An independent pooled builder was added for the five policy families named in

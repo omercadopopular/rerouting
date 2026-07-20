@@ -172,3 +172,14 @@ incomplete for solar and the principal 232 scopes, so the resulting panel is a
 diagnostic `built_partial` artifact. It is not a replacement for the locked
 package-policy replication and does not authorize Section 301 v5 or the 2025
 event study.
+
+## 2026-07-20 pooled family correction
+
+The pooled source layer now uses exact Chapter-99 family codes: `99034501/02/06`
+are washers and `99034522/25` are solar. A local byte-level parser expands the
+principal 232 scopes from archived HTS notes 16 and 19 and recovers the note 17
+washer-parts scope. Solar, washer, and aluminum source scopes are complete;
+steel's qualifying-contract `99038061` and China `99038809/15/16` remain
+unresolved. The pooled panel is still diagnostic and independent policy release
+remains blocked. The package-only historical estimator and raw-trade extension
+gates are unaffected by this independent-policy status.

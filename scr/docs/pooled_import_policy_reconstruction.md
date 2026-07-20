@@ -59,3 +59,24 @@ The canonical machine-readable outputs are:
 Compact grouped summaries may be CSV.  Full keys and row-level mismatches are
 Parquet only.  The independent policy and 2025 event gates remain false until
 all family scopes, rates, exclusions, and calendars pass their own validation.
+
+## 2026-07-20 source-family correction
+
+The initial pooled build contained a material Chapter-99 classification bug:
+it assigned every `990345*` heading to washers and assumed a nonexistent
+`990346*` solar family. The local historical attributes show the correct split
+is `99034501/02/06` for washers and `99034522/25` for solar. The central family
+mapper now uses exact codes and the note parser distinguishes U.S. note 17
+from note 18.
+
+The rebuild also recovers principal Section 232 scopes directly from the local
+2018 HTS Revision 12 PDF: note 16 heading expansion for steel, note 19 heading
+expansion for aluminum, and note 17's explicit `8450.90.20/.60` parts scope
+for washer rule `99034506`. These are source-derived links, never package
+policy values. The corrected action counts are 13,110 solar, 21,735 washer,
+1,794,072 steel, 259,896 aluminum, and 4,172 China.
+
+The independent legal build remains partial. The qualifying-contract steel
+rule `99038061` and China rules `99038809/15/16` still lack verified local HS8
+scope. They remain unresolved rather than being treated as zero or as package
+assignments, so no pooled independent-policy regression is released.
