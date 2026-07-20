@@ -704,3 +704,28 @@ On the registered historical analysis universe, paper-compatible treatment assig
 The 24-fit policy-substitution run validates all checkpoints and locks the historical method. Paper-compatible event curves match the package-policy anchor to numerical precision. Dynamic correlations range from `0.993819` to `0.999802`, maximum gaps from `0.061659` to `0.187121`, and diagnostic CI overlap from `0.895775` to `0.910708`. Final-legal event curves differ substantially because actual legal dates and final scope are not the paper's nearest-month calendar; final-legal dynamic curves remain close.
 
 This establishes a reproducible historical paper-compatible methodology, not an independently complete 2025 ledger. The 2018 validation-derived corrections must not be carried into 2025 without new official sources.
+
+## 2026-07-20 pooled Section 201/232/301 reconstruction attempt
+
+An independent pooled builder was added for the five policy families named in
+the original Stata programs. It uses local annual HTS data and archived
+machine/PDF scope artifacts, expands legal actions to partner-HS8-month rows,
+computes inclusive day-weighted increments, and stacks family components only
+after preserving family provenance. Zero-rate Chapter-99 rows are source
+evidence, not positive treatment actions.
+
+The build is explicitly `built_partial`. Available local scope links do not
+enumerate the positive main Section 232 rules `99038001`, `99038002`,
+`99038061`, and `99038501`; the solar family has no linked positive scope; and
+some later China/washer rules remain unlinked. Annual HTS descriptions that
+refer to U.S. notes are not themselves an HS8 scope enumeration. No package
+policy fields were used to fill these gaps, and no unresolved value was set to
+zero.
+
+The pooled validator therefore reports diagnostics rather than a passed legal
+gate. On 4,199,002 common package rows, treatment assignment matches 0.977965
+unweighted and 0.969422 trade-weighted; additional-rate and timing metrics are
+reported in the versioned Parquet/JSON outputs. These values must not be used
+to claim independent policy replication. Completion of the official 201/232
+scope ledger remains the blocker for an independently constructed policy
+variable.

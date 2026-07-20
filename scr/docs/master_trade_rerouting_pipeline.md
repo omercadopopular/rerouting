@@ -162,3 +162,13 @@ The package-only original-horizon import benchmark is current and passes: 8/8 ev
 The historical import replication now has three completed layers: the package estimator versus Figures 2/4a, raw Census outcomes versus package-policy common-sample estimates, and reconstructed paper-compatible Section 301 policy versus the package-policy anchor. The paper-compatible substitution grid passes all eight point-estimate comparisons; event curves are numerically identical and dynamic maximum gaps remain below 0.188 log points.
 
 This lock is deliberately narrower than a claim that final legal dates reproduce the paper. The independent final-legal schedule is a separate diagnostic and the versioned 2025 legal ledger remains a prerequisite for any new-administration event study. The next phase may reuse the estimator and raw trade schema, but must construct and verify a new official 2025 product/date/rate/exclusion/stacking ledger before estimation.
+
+## 2026-07-20 pooled policy reconstruction boundary
+
+The source-only pooled layer now attempts all five historical policy families
+without importing package policy values. It keeps family increments, legal
+day-weighting, and paper-compatible months distinct. The local source ledger is
+incomplete for solar and the principal 232 scopes, so the resulting panel is a
+diagnostic `built_partial` artifact. It is not a replacement for the locked
+package-policy replication and does not authorize Section 301 v5 or the 2025
+event study.

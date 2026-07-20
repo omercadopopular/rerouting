@@ -446,3 +446,18 @@ The original-period Section 301 methodology is now separated into a package-poli
 The paper-compatible variable and event-encoding gates pass. The complete substitution grid contains 24/24 validated fits. Its event curves match the package-policy anchor to numerical precision, while all four dynamic comparisons pass with correlations of at least 0.9938 and maximum gaps below 0.188 log points. The historical import methodology for Figures 2 and 4a is therefore locked. The raw-outcome interval-overlap failure remains disclosed as a secondary inference diagnostic.
 
 The independent 2018 final-legal variable construction passes its registered scope/date/increment tolerance gate, but legal-calendar event curves are diagnostic rather than paper-replication targets. The 2025 ledger remains incomplete and no 2025 event regression is authorized. CPI data are preserved for future work; real-value fields are not required for this nominal historical replication.
+
+### 2026-07-20 pooled 201/232/301 source reconstruction
+
+An independent pooled builder now keeps Section 201 solar/washer, Section 232
+steel/aluminum, and Section 301 China components separate before stacking. It
+uses local annual HTS and archived machine/PDF scope artifacts, computes
+inclusive legal active-day shares, and records paper-compatible months
+separately. The builder never reads package policy fields.
+
+The source inventory is not release-complete: solar has no linked positive
+scope, and the main positive steel/aluminum rules plus several later
+China/washer rules lack HS8 scope links. The family-status and missing-source
+manifests identify the exact rules. The pooled comparison is diagnostic only;
+it does not authorize a historical regression rerun, Section 301 v5, or the
+2025 event study.

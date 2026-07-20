@@ -297,6 +297,16 @@ decomposition problem, not another broad tariff-scope pass.
 - [ ] Original paper-window coefficients pass the benchmark comparison.
 - [ ] Public tariff ledger reaches the Census cutoff.
 - [ ] Section 201/232/301/IEEPA scopes, exemptions, and stacking pass reconciliation.
+
+## 2026-07-20 pooled policy source status
+
+The historical pooled policy layer is now explicitly source-separated by
+Section 201 solar/washer, Section 232 steel/aluminum, and Section 301 China.
+The source-only builder is diagnostic and marked `built_partial`: local
+machine/PDF links do not provide the positive main 232 scopes or a solar scope.
+The package-policy anchor remains the only accepted historical estimator input;
+the independent legal policy and 2025 event gates remain false until the
+missing official scope records are supplied.
 - [ ] Duty-inclusive coverage is reported by event month.
 - [ ] February-2025 `-12/+12` results label unavailable right-tail horizons.
 
