@@ -35,6 +35,13 @@ package policy used by builder: false
 This is an honest source blocker, not a failed regression hidden by a zero or a
 package-derived assignment.
 
+The rule inventory records the specific unresolved objects. Solar `99034522`,
+washer `99034501/02/06`, and aluminum `99038505/06` are quota/TRQ alternatives
+whose monthly entry allocation is not observed. The local attributes also show
+washer rates of `.18/.45` and aluminum rates carried through 2050; those
+intervals require a source-vintage audit before they can be used for the
+2017--2019 paper window. No rate is silently converted to zero.
+
 ## Why pooled v1 is historical diagnostic evidence
 
 Pooled v1 is retained under its original namespace. It is stale because its
