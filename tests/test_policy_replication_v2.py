@@ -186,6 +186,25 @@ def test_legal_calendar_diagnostics_do_not_enter_registered_paper_gate() -> None
     assert registered_paper_curve_gate(pd.DataFrame(rows))
 
 
+def test_calendar_eligible_field_cannot_promote_legal_curve() -> None:
+    rows = []
+    for specification in ("event", "dynamic"):
+        for outcome in ("val", "q1", "p", "pduty"):
+            rows.append({
+                "comparison_role": "registered_historical_replication_gate",
+                "registered_gate_member": True,
+                "published_comparison_eligible": True,
+                "point_estimate_thresholds_passed": True,
+            })
+            rows.append({
+                "comparison_role": "legal_calendar_diagnostic",
+                "registered_gate_member": True,
+                "published_comparison_eligible": False,
+                "point_estimate_thresholds_passed": True,
+            })
+    assert registered_paper_curve_gate(pd.DataFrame(rows))
+
+
 def test_final_legal_gate_does_not_claim_historical_lock_role() -> None:
     source = Path("scr/passthru_data/policy_replication_v2.py").read_text(encoding="utf-8")
     assert 'LEGAL_GATE_VERSION = "section301_policy_replication_v2_final_legal"' in source

@@ -25,12 +25,40 @@ import pandas as pd
 from .config import PipelineConfig
 from . import pooled_policy_replication_v1 as v1
 from .io_utils import normalize_hs_code, sha256_file, write_metadata_json, write_parquet
+from .policy_benchmark_contract import load_contract
 
 
 VERSION = "pooled_policy_replication_v2"
 FAMILIES = v1.FAMILIES
 LEGAL_SOURCE_MODE = "independent_local_official_sources"
 PAPER_SOURCE_MODE = "paper_compatible_from_independent_legal_ledger"
+
+# These are historical initial shocks, not a substitute for the legal
+# contemporaneous schedule.  They are used only by the paper-compatible
+# transformation and are intentionally kept separate from LEGAL_RATE_SCHEDULE.
+PAPER_INITIAL_SHOCKS = {
+    "99034501": 0.20,
+    "99034502": 0.50,
+    "99034506": 0.50,
+    "99034522": 0.30,
+    "99034525": 0.30,
+    "99038001": 0.25,
+    "99038501": 0.10,
+}
+
+# Source-supported historical safeguard steps.  The schedule is deliberately
+# bounded to the paper window; no later rate is extrapolated through a stale
+# Chapter-99 table or filled with zero.
+LEGAL_RATE_SCHEDULE = {
+    "99034501": (("2018-02-07", 0.20), ("2019-02-07", 0.18)),
+    "99034502": (("2018-02-07", 0.50), ("2019-02-07", 0.45)),
+    "99034506": (("2018-02-07", 0.50), ("2019-02-07", 0.45)),
+    "99034522": (("2018-02-07", 0.30), ("2019-02-07", 0.25)),
+    "99034525": (("2018-02-07", 0.30), ("2019-02-07", 0.25)),
+    "99038001": (("2018-03-23", 0.25),),
+    "99038501": (("2018-03-23", 0.10),),
+}
+LEGAL_SCHEDULE_END = pd.Timestamp("2019-04-30")
 
 
 @dataclass(frozen=True)
@@ -124,8 +152,41 @@ def specification_fingerprint() -> str:
         "roles": sorted(ROLE_BY_RULE.items()),
         "stacking": "typed_role_selection_then_additive_across_families",
         "unresolved_policy": "null_and_blocked_not_zero",
+        "paper_initial_shocks": sorted(PAPER_INITIAL_SHOCKS.items()),
+        "legal_rate_schedule": sorted((key, value) for key, value in LEGAL_RATE_SCHEDULE.items()),
+        "nearest_full_month_rule": "effective_day_greater_than_half_month_moves_to_next_month",
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def paper_month_from_legal_date(value: Any) -> pd.Timestamp | pd.NaT:
+    """Apply the paper's nearest-full-month convention to an effective date."""
+
+    date = pd.to_datetime(value, errors="coerce")
+    if pd.isna(date):
+        return pd.NaT
+    month_end = date + pd.offsets.MonthEnd(0)
+    if int(date.day) > int(month_end.day) / 2:
+        return (date + pd.offsets.MonthBegin(1)).normalize()
+    return date.normalize().replace(day=1)
+
+
+def paper_initial_shock(rule_code: Any) -> float | None:
+    return PAPER_INITIAL_SHOCKS.get(normalize_hs_code(rule_code, 8) or "")
+
+
+def legal_rate_for_date(rule_code: Any, value: Any) -> float | None:
+    """Return a source-bounded legal rate, or null outside the audited range."""
+
+    code = normalize_hs_code(rule_code, 8) or ""
+    date = pd.to_datetime(value, errors="coerce")
+    if pd.isna(date) or date > LEGAL_SCHEDULE_END or code not in LEGAL_RATE_SCHEDULE:
+        return None
+    chosen = None
+    for start, rate in LEGAL_RATE_SCHEDULE[code]:
+        if date >= pd.Timestamp(start):
+            chosen = rate
+    return chosen
 
 
 def scientific_code_fingerprint() -> str:
@@ -230,6 +291,33 @@ def source_qualified_links(config: PipelineConfig) -> pd.DataFrame:
                 ])
                 links = pd.concat([links, solar_rows], ignore_index=True, sort=False)
         except Exception:
+            pass
+    # Note 17(c) and 17(f) identify finished residential machines and parts
+    # separately.  The earlier parser retained only the parts line, which
+    # understated washer scope.  Use the local Revision 12 structured HTS
+    # table as the source and record the structural basis explicitly.
+    washer_source = config.raw_dir / "policy" / "archive" / "data" / "hts_2018_revision_12_data.csv"
+    if washer_source.exists():
+        try:
+            source = pd.read_csv(washer_source, usecols=["HTS Number", "Description"], dtype="string")
+            text = " ".join(source["Description"].dropna().astype(str).tolist()).lower()
+            required = {"8450.11.00", "8450.20.00", "9903.45.01", "9903.45.02", "9903.45.06"}
+            if all(code in text or code in " ".join(source["HTS Number"].dropna().astype(str).tolist()) for code in required):
+                washer_rows = [
+                    {"hs8": hs8, "rule_code": rule, "family": "washer_201", "release_name": washer_source.stem,
+                     "release_start_date": pd.Timestamp("2018-02-07"), "release_end_date": pd.Timestamp("2019-12-31"),
+                     "scope_source": "local_hts_note_17_structural_scope"}
+                    for rule, hs8_values in {
+                        "99034501": ("84501100", "84502000"),
+                        "99034502": ("84501100", "84502000"),
+                        "99034506": ("84509020", "84509060"),
+                    }.items()
+                    for hs8 in hs8_values
+                ]
+                links = pd.concat([links, pd.DataFrame(washer_rows)], ignore_index=True, sort=False)
+        except Exception:
+            # A missing or malformed local source remains a blocker; it must
+            # not be replaced by package-derived scope or a zero-rate row.
             pass
     if links.empty:
         return pd.DataFrame(columns=["hs8", "rule_code", "family", "scope_confidence"])
@@ -380,6 +468,7 @@ def build_preflight(config: PipelineConfig) -> dict[str, Any]:
         "targets": TARGET_CROSSWALK,
         "package_is_validation_only": True,
     })
+    write_metadata_json(out / "historical_policy_benchmark_contract.json", load_contract())
     attrs = v1._load_tradewar_rule_attributes(config)
     links = source_qualified_links(config)
     statuses = family_source_status(links, attrs)
@@ -406,6 +495,9 @@ def build_preflight(config: PipelineConfig) -> dict[str, Any]:
         "specification_fingerprint": specification_fingerprint(),
         "legal_calendar": "independent_legal_effective_date",
         "paper_calendars": ["m_status1/m_effective_mdate1", "m_status2/m_effective_mdate2"],
+        "paper_initial_shocks": PAPER_INITIAL_SHOCKS,
+        "legal_rate_schedule_end": LEGAL_SCHEDULE_END.strftime("%Y-%m-%d"),
+        "published_comparison_rule": "only do-file-consistent calendar and policy variables may enter the paper gate",
         "ready_for_policy_regression": not blocked,
         "ready_for_2025_event": False,
     }

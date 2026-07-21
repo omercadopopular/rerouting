@@ -1,0 +1,64 @@
+{
+  "version": "historical_policy_benchmark_contract_v1",
+  "published_comparison_rule": "Only a reconstruction with the same policy variable, dating convention, sample, outcome, estimator, baseline, fixed effects, and clusters as the original do-file may enter the published-paper replication gate.",
+  "objects": {
+    "paper_compatible": {
+      "source_mode": "paper_compatible_from_independent_legal_ledger",
+      "purpose": "historical_paper_replication",
+      "published_comparison_eligible": true
+    },
+    "legal_calendar": {
+      "source_mode": "independent_legal_effective_date",
+      "purpose": "legal_calendar_diagnostic_and_forward_extension",
+      "published_comparison_eligible": false
+    },
+    "realized_duty": {
+      "source_mode": "independent_realized_duty",
+      "purpose": "realized_burden_diagnostic",
+      "published_comparison_eligible": false
+    },
+    "package_reference": {
+      "source_mode": "package_reference",
+      "purpose": "validation_anchor_only",
+      "published_comparison_eligible": true
+    }
+  },
+  "targets": {
+    "fig_01_rates": {
+      "original_program": "data/fajgelbaum/code/main/fig_01_rates.do",
+      "calendar": "legal_effective_month",
+      "policy_variables": ["m_status1", "m_effective_mdate1", "m_stattariff1"],
+      "paper_comparison_eligible_calendar": "legal_effective_month",
+      "legal_calendar_is_published_target": true
+    },
+    "fig_02_m_event": {
+      "original_program": "data/fajgelbaum/code/main/fig_02_m_event.do",
+      "calendar": "nearest_full_month",
+      "policy_variables": ["m_status2", "m_effective_mdate2", "m_stattariff2"],
+      "paper_comparison_eligible_calendar": "nearest_full_month",
+      "legal_calendar_is_published_target": false
+    },
+    "fig_04_dynamic": {
+      "original_program": "data/fajgelbaum/code/main/fig_04_dynamic.do",
+      "specification_source": "data/fajgelbaum/code/main/tab_04_sigma_omega.do",
+      "calendar": "nearest_full_month_dynamic_design",
+      "policy_variables": ["stat2tf", "lstattf", "dlstattf"],
+      "paper_comparison_eligible_calendar": "nearest_full_month_dynamic_design",
+      "legal_calendar_is_published_target": false
+    },
+    "tab_02_sector_sumstats": {
+      "original_program": "data/fajgelbaum/code/main/tab_02_sector_sumstats.do",
+      "calendar": "paper_table",
+      "policy_variables": ["m_hit", "m_increase"],
+      "paper_comparison_eligible_calendar": "paper_table",
+      "legal_calendar_is_published_target": false
+    }
+  },
+  "thresholds": {
+    "curve_correlation": 0.95,
+    "curve_rmse": 1.25,
+    "curve_max_abs_difference": 2.5,
+    "post_treatment_sign_agreement": 0.5,
+    "ci_overlap_role": "diagnostic_not_primary_point_estimate_gate"
+  }
+}

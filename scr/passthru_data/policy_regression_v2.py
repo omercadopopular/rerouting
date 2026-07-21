@@ -474,6 +474,10 @@ def _curve_metrics(left: pd.DataFrame, right: pd.DataFrame, horizon: str) -> dic
 
 def registered_paper_curve_gate(comparison: pd.DataFrame) -> bool:
     registered = comparison.loc[comparison["registered_gate_member"].astype(bool)]
+    if "published_comparison_eligible" in comparison.columns:
+        registered = registered.loc[registered["published_comparison_eligible"].astype(bool)]
+    if "comparison_role" in comparison.columns:
+        registered = registered.loc[registered["comparison_role"].eq("registered_historical_replication_gate")]
     return bool(
         len(registered) == len(SPECS) * len(OUTCOMES)
         and registered["point_estimate_thresholds_passed"].astype(bool).all()
@@ -700,7 +704,20 @@ def finalize_policy_regressions(config: PipelineConfig, *, state: dict[str, Any]
                     elif value < threshold:
                         failures.append(metric)
                 role = "registered_historical_replication_gate" if mode == POLICY_SOURCE_MODE_PAPER else "legal_calendar_diagnostic"
-                comparisons.append({"specification": spec, "outcome": outcome, "anchor_mode": PACKAGE_ANCHOR_MODE, "comparison_mode": mode, "comparison_role": role, **metrics, "failed_metrics": ";".join(failures), "point_estimate_thresholds_passed": not failures, "registered_gate_member": mode == POLICY_SOURCE_MODE_PAPER})
+                comparisons.append({
+                    "specification": spec,
+                    "outcome": outcome,
+                    "anchor_mode": PACKAGE_ANCHOR_MODE,
+                    "comparison_mode": mode,
+                    "comparison_role": role,
+                    "original_calendar": "paper_compatible_section301_month" if mode == POLICY_SOURCE_MODE_PAPER else "paper_compatible_section301_month",
+                    "reconstructed_calendar": "paper_compatible_section301_month" if mode == POLICY_SOURCE_MODE_PAPER else "independent_legal_effective_month",
+                    "published_comparison_eligible": mode == POLICY_SOURCE_MODE_PAPER,
+                    **metrics,
+                    "failed_metrics": ";".join(failures),
+                    "point_estimate_thresholds_passed": not failures,
+                    "registered_gate_member": mode == POLICY_SOURCE_MODE_PAPER,
+                })
     comparison = pd.DataFrame(comparisons)
     paper_curve_gate_passed = registered_paper_curve_gate(comparison)
     paper_variable_gate = json.loads((policy_root(config) / "paper_compatibility_variable_gate.json").read_text(encoding="utf-8"))

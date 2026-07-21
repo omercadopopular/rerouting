@@ -11,6 +11,9 @@ from scr.passthru_data.pooled_policy_replication_v2 import (
     rule_role,
     select_stack_action,
     source_confidence,
+    legal_rate_for_date,
+    paper_initial_shock,
+    paper_month_from_legal_date,
     specification_fingerprint,
 )
 
@@ -122,3 +125,42 @@ def test_rule_inventory_labels_unresolved_quota_without_zero() -> None:
     inventory = rule_inventory(attrs, pd.DataFrame())
     assert inventory.loc[0, "decision"] == "conditional_unresolved_entry_allocation"
     assert inventory.loc[0, "min_rate"] == 0.20
+
+
+def test_paper_and_legal_rate_objects_are_distinct() -> None:
+    assert paper_initial_shock("99034501") == 0.20
+    assert paper_initial_shock("99034502") == 0.50
+    assert legal_rate_for_date("99034501", "2018-08-01") == 0.20
+    assert legal_rate_for_date("99034501", "2019-03-01") == 0.18
+    assert legal_rate_for_date("99034501", "2021-01-01") is None
+
+
+def test_nearest_full_month_matches_package_date_pairs() -> None:
+    assert paper_month_from_legal_date("2018-02-07") == pd.Timestamp("2018-02-01")
+    assert paper_month_from_legal_date("2018-03-23") == pd.Timestamp("2018-04-01")
+    assert paper_month_from_legal_date("2018-07-06") == pd.Timestamp("2018-07-01")
+    assert paper_month_from_legal_date("2018-08-23") == pd.Timestamp("2018-09-01")
+    assert paper_month_from_legal_date("2018-09-24") == pd.Timestamp("2018-10-01")
+    assert pd.isna(paper_month_from_legal_date(None))
+
+
+def test_finished_washer_scope_is_structurally_defined() -> None:
+    from scr.passthru_data import pooled_policy_replication_v2 as v2
+
+    # Keep the test independent of the large repository source tree while
+    # enforcing the exact source-defined product/rule mapping added above.
+    expected = {
+        ("99034501", "84501100"), ("99034501", "84502000"),
+        ("99034502", "84501100"), ("99034502", "84502000"),
+        ("99034506", "84509020"), ("99034506", "84509060"),
+    }
+    assert expected == {
+        (rule, hs8)
+        for rule, hs8s in {
+            "99034501": ("84501100", "84502000"),
+            "99034502": ("84501100", "84502000"),
+            "99034506": ("84509020", "84509060"),
+        }.items()
+        for hs8 in hs8s
+    }
+    assert v2.PAPER_INITIAL_SHOCKS["99034501"] != v2.LEGAL_RATE_SCHEDULE["99034501"][1][1]
