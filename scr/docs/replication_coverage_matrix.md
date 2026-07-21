@@ -23,3 +23,8 @@ Generated from canonical manifests on 2026-07-20.
 Package import replication covers Figures 2 and 4a only. Figure 4b exports and other tables remain outside the package gate.
 
 The Section 301 paper-compatible policy diagnostic is distinct from the independent pooled 201/232/301 policy gate. The pooled gate remains failed until independently sourced family rates and calendars reproduce the package policy fields on the paper sample. CPI inputs remain in place for future work but are not required for the original nominal replication.
+
+The published-comparison rule is do-file-specific: Figure 2 and Figure 4a use
+the paper-compatible `m_*2` dating convention; legal `m_*1` curves are
+diagnostics. Figure 1 is benchmarked against `m_*1` because that is the field
+used by its original program.

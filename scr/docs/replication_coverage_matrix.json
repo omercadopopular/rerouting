@@ -28,6 +28,8 @@
   },
   "package_full_vs_common_gate": "passed",
   "package_import_pdf_gate": "passed",
+  "historical_policy_benchmark_contract": "scr/specifications/historical_policy_benchmark_contract.json",
+  "published_comparison_rule": "do-file-specific calendar and policy variables; Figure 2 and Figure 4a use paper-compatible m_*2/stat2tf, while legal m_*1 is diagnostic",
   "package_provenance_gate": "passed",
   "pooled_policy_v2_preflight": "blocked_missing_or_conditional_scope",
   "pooled_policy_v2_blocked_families": [

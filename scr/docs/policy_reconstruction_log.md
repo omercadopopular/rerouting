@@ -793,3 +793,19 @@ partitions and is being validated against the source ZIP archives; archive,
 quantity, duty-field, and native-concordance gates remain separate. CPI files
 are retained for future real-value work and are not required for nominal
 Figures 2 or 4a.
+
+## 2026-07-20 — do-file-specific dating contract and final pooled-policy patch
+
+The historical replication contract now requires a like-for-like policy
+variable and dating convention. Figures 2 and 4a are benchmarked with the
+paper-compatible `m_*2`/`stat2tf` construction used by the original programs.
+Legal-calendar `m_*1` estimates are retained as separate diagnostics and may
+not pass or fail the published-paper gate. Figure 1 is benchmarked against
+`m_*1` because that is the field used by its original program.
+
+The v2 source layer now records distinct initial paper shocks and bounded
+2018/2019 legal rate schedules, and adds finished-washer structural scope from
+the local HTS Note 17 table. Solar, washer, and aluminum quota/TRQ entry
+allocation remains unresolved, so the pooled policy preflight remains
+fail-closed. No pooled regression or 2025 event study is promoted while those
+legal objects are incomplete.
