@@ -14,6 +14,7 @@ from scr.passthru_data.pooled_policy_replication_v2 import (
     legal_rate_for_date,
     paper_initial_shock,
     paper_month_from_legal_date,
+    structural_washer_links,
     specification_fingerprint,
 )
 
@@ -164,3 +165,22 @@ def test_finished_washer_scope_is_structurally_defined() -> None:
         for hs8 in hs8s
     }
     assert v2.PAPER_INITIAL_SHOCKS["99034501"] != v2.LEGAL_RATE_SCHEDULE["99034501"][1][1]
+
+
+def test_structural_washer_parser_reads_all_note17_groups(tmp_path) -> None:
+    source = tmp_path / "hts_2018_revision_12_data.csv"
+    source.write_text(
+        '"HTS Number","Description"\n'
+        '"8450.11.00","finished"\n'
+        '"8450.20.00","finished"\n'
+        '"8450.90.20","parts"\n'
+        '"8450.90.60","parts"\n'
+        '"9903.45.01","quota"\n'
+        '"9903.45.02","quota"\n'
+        '"9903.45.06","parts quota"\n',
+        encoding="utf-8",
+    )
+    links = structural_washer_links(source)
+    assert len(links) == 6
+    assert set(links["rule_code"]) == {"99034501", "99034502", "99034506"}
+    assert set(links.loc[links["rule_code"].eq("99034501"), "hs8"]) == {"84501100", "84502000"}

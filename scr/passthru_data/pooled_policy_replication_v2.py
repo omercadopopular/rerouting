@@ -19,6 +19,7 @@ from typing import Any, Iterable
 import argparse
 import hashlib
 import json
+import re
 
 import pandas as pd
 
@@ -245,6 +246,49 @@ def source_confidence(value: Any) -> str:
     return "unresolved"
 
 
+def structural_washer_links(source_path: Path) -> pd.DataFrame:
+    """Read Note 17 washer scope from a local structured HTS table.
+
+    This helper is deliberately source-only and returns no rows when the
+    required structural identifiers are absent.  It never consults package
+    family flags and never invents a fallback scope.
+    """
+
+    columns = ["HTS Number", "Description"]
+    if not source_path.exists():
+        return pd.DataFrame(columns=["hs8", "rule_code", "family", "scope_source"])
+    try:
+        source = pd.read_csv(source_path, usecols=columns, dtype="string")
+    except Exception:
+        return pd.DataFrame(columns=["hs8", "rule_code", "family", "scope_source"])
+    identifiers = " ".join(
+        value
+        for column in columns
+        for value in source[column].dropna().astype(str).tolist()
+    )
+    required = {"8450.11.00", "8450.20.00", "9903.45.01", "9903.45.02", "9903.45.06"}
+    if not required.issubset(set(re.findall(r"\d{4}\.\d{2}\.\d{2}", identifiers))):
+        return pd.DataFrame(columns=["hs8", "rule_code", "family", "scope_source"])
+    rows = [
+        {
+            "hs8": hs8,
+            "rule_code": rule,
+            "family": "washer_201",
+            "release_name": source_path.stem,
+            "release_start_date": pd.Timestamp("2018-02-07"),
+            "release_end_date": pd.Timestamp("2019-12-31"),
+            "scope_source": "local_hts_note_17_structural_scope",
+        }
+        for rule, hs8_values in {
+            "99034501": ("84501100", "84502000"),
+            "99034502": ("84501100", "84502000"),
+            "99034506": ("84509020", "84509060"),
+        }.items()
+        for hs8 in hs8_values
+    ]
+    return pd.DataFrame(rows)
+
+
 def source_qualified_links(config: PipelineConfig) -> pd.DataFrame:
     """Keep only links whose provenance is an explicit structural scope.
 
@@ -297,28 +341,9 @@ def source_qualified_links(config: PipelineConfig) -> pd.DataFrame:
     # understated washer scope.  Use the local Revision 12 structured HTS
     # table as the source and record the structural basis explicitly.
     washer_source = config.raw_dir / "policy" / "archive" / "data" / "hts_2018_revision_12_data.csv"
-    if washer_source.exists():
-        try:
-            source = pd.read_csv(washer_source, usecols=["HTS Number", "Description"], dtype="string")
-            text = " ".join(source["Description"].dropna().astype(str).tolist()).lower()
-            required = {"8450.11.00", "8450.20.00", "9903.45.01", "9903.45.02", "9903.45.06"}
-            if all(code in text or code in " ".join(source["HTS Number"].dropna().astype(str).tolist()) for code in required):
-                washer_rows = [
-                    {"hs8": hs8, "rule_code": rule, "family": "washer_201", "release_name": washer_source.stem,
-                     "release_start_date": pd.Timestamp("2018-02-07"), "release_end_date": pd.Timestamp("2019-12-31"),
-                     "scope_source": "local_hts_note_17_structural_scope"}
-                    for rule, hs8_values in {
-                        "99034501": ("84501100", "84502000"),
-                        "99034502": ("84501100", "84502000"),
-                        "99034506": ("84509020", "84509060"),
-                    }.items()
-                    for hs8 in hs8_values
-                ]
-                links = pd.concat([links, pd.DataFrame(washer_rows)], ignore_index=True, sort=False)
-        except Exception:
-            # A missing or malformed local source remains a blocker; it must
-            # not be replaced by package-derived scope or a zero-rate row.
-            pass
+    washer_rows = structural_washer_links(washer_source)
+    if not washer_rows.empty:
+        links = pd.concat([links, washer_rows], ignore_index=True, sort=False)
     if links.empty:
         return pd.DataFrame(columns=["hs8", "rule_code", "family", "scope_confidence"])
     out = links.copy()
