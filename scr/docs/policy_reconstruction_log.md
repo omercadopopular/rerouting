@@ -805,7 +805,65 @@ not pass or fail the published-paper gate. Figure 1 is benchmarked against
 
 The v2 source layer now records distinct initial paper shocks and bounded
 2018/2019 legal rate schedules, and adds finished-washer structural scope from
-the local HTS Note 17 table. Solar, washer, and aluminum quota/TRQ entry
-allocation remains unresolved, so the pooled policy preflight remains
-fail-closed. No pooled regression or 2025 event study is promoted while those
-legal objects are incomplete.
+the local HTS Note 17 table. The paper-compatible object follows the authors'
+documented omission of threshold-only quota increments (approximately $16m of
+roughly $300bn targeted imports) while the independent legal object preserves
+quota allocation as unresolved. For day-scaled rates, the registered formula
+is `(D-d)/D` in the initial month and the remainder in the next month, with
+event timing still governed by the separate 15th-of-month cutoff. Paper-
+compatible policy regression may proceed after its same-sample gate; the
+independent legal quota gate remains false. No 2025 event study is promoted
+while those legal objects are incomplete.
+### 2026-07-21 — timing convention and reproducibility lock
+
+The historical paper-compatible Section 301 object now follows the appendix
+exclusions (AD/CVD, unrelated treaty changes, and threshold-only quota
+increments) and the agreed arithmetic for day scaling: an effective date on
+day `d` contributes `(days_in_month - d) / days_in_month` in the initial month,
+with the remainder in the following month. The effective day itself is not
+counted. Event assignment remains a separate rule: dates after the 15th enter
+the following month.
+
+All 24 Section 301 policy-substitution fits were rerun after canonicalizing
+panel row order and stabilizing full-projection design hashes. The paper-
+compatible event curves are identical to the package-policy anchor; dynamic
+point estimates remain within the registered diagnostic thresholds. The legal
+calendar remains a separate diagnostic object and is not promoted to a paper
+replication claim. The pooled Section 201/232 regression grid was not run in
+this pass; the current regression outputs are explicitly Section 301-only.
+
+### 2026-07-21 — pooled 201/232/301 panel and same-sample diagnostics
+
+The pooled v2 panel now combines independently sourced Sections 201, 232, and
+301 schedules with the independently parsed 2017 MFN baseline. The paper object
+uses the package-compatible bilateral status convention and the documented
+effective-day-excluded arithmetic; the legal object remains partner-specific and
+quota allocation is unresolved rather than zero-filled. On 4,199,002 package
+overlap rows, treatment match is 0.997125, trade-weighted treatment match is
+0.997512, exact paper-month match is 0.961687, and trade-weighted increment MAE
+is 0.002705. The paper-compatible variable gate therefore passes; the legal gate
+remains false.
+
+All 16 pooled policy regressions (paper/legal × event/dynamic × value, quantity,
+pre-duty price, and duty-inclusive price) were materialized on the frozen raw-
+outcome common sample. Paper-calendar event curves have high shape correlation,
+but value and quantity point-estimate levels remain several log points from the
+full package benchmark. Dynamic value/quantity differences are smaller but not
+yet within the registered bridge gate. These outputs are diagnostic and do not
+authorize the 2025 event study. See
+`scr/docs/pooled_policy_replication_v2_results.md` and the Parquet/plot artifacts
+under `raw_replication_imports/pooled_policy_replication_v2/regressions/`.
+
+### 2026-07-21 — v3 scope and clock separation
+
+Version 3 separates the event-study assignment clock from the bilateral tariff
+path. The paper-compatible clock uses first positive applicability, moves a
+date after the 15th to the next month, and applies the NAICS4/3/2 then February
+2018 fallback only to untreated comparison timing. The legal clock uses the
+first positive partner-product month. Dynamic regressions use the independent
+partner-specific day-weighted path for Sections 201/232/301, with China-only
+Section 301 scope and no within-family double counting. The v3 panel and
+aggregate diagnostics are release candidates for further review, not a passed
+independent policy gate. The package-only benchmark remains the historical
+replication reference; v3 event and dynamic curves are labeled independent
+policy diagnostics.
