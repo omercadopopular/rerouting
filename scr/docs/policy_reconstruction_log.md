@@ -867,3 +867,15 @@ aggregate diagnostics are release candidates for further review, not a passed
 independent policy gate. The package-only benchmark remains the historical
 replication reference; v3 event and dynamic curves are labeled independent
 policy diagnostics.
+
+### 2026-07-22 — v4 full-policy anchor and final comparison namespace
+
+Version 4 replaces the former Section-301-only anchor with a true full package
+policy anchor copied from the corrected authors' cache on the raw common
+sample. Independent paper-clock and legal-clock panels retain Sections 201,
+232, and 301 plus independently sourced MFN/base rates. The 315,810 common
+keys with unresolved MFN rates remain null and are reported in a Parquet audit;
+they are not zero-filled. The v4 regression namespace and plots distinguish
+package, independent paper, and independent legal policy modes. The package
+PDF gate remains the historical replication gate; the independent legal policy
+gate remains false pending component-level validation.
