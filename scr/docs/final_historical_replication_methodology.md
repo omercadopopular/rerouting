@@ -31,6 +31,20 @@ the first partner-specific positive applicability month.  Dynamic regressions
 use day-weighted tariff changes; event regressions use the assigned event
 month.  Family components are kept separately before the total is formed.
 
+The final v4 historical clock freezes the action universe to trade-war actions
+legally effective through 2018-09-30. This reproduces the package's last
+paper-compatible event month, 2018-10, and prevents later 2019--2020 policy
+changes from changing the historical treatment classification. For both
+directly targeted partner-products and product-level exempt comparisons, an
+effective date after the 15th is assigned to the following month. Directly
+targeted partner-products receive status 2; product targets exempt for that
+partner receive status 1; products outside the historical action universe
+receive status 0 and obtain the Stata NAICS4/3/2 then February-2018 fallback
+inside the event-study preparation. The legal diagnostic uses the same action
+universe and status classification but retains the first legal applicability
+month. Paper and legal dynamic regressions use exactly the same independent
+partner-specific day-weighted tariff path.
+
 ## Estimation and comparisons
 
 Figures 2 and 4a are estimated exactly as in the Stata programs, including
@@ -59,3 +73,17 @@ This locks the historical methodology only after the package/PDF gate and the
 independent paper-policy point-estimate gates are evaluated.  It does not claim
 that the independently reconstructed legal rates are exact, and it does not
 estimate the 2025 policy/event study.
+
+## Final v4 numerical evidence
+
+All 24 required fits contain 13 horizons. On the identical raw-outcome sample,
+the independent paper-compatible policy reproduces the package-policy curves
+closely. Dynamic correlations range from 0.9599 to 0.9986 and maximum absolute
+differences range from 0.0595 to 0.2989. Event-study correlations are 0.9994
+for value, 0.9984 for quantity, 0.9703 for pre-duty price, and 0.9979 for
+duty-inclusive price. Event value, price, and duty-inclusive price pass every
+registered point-estimate threshold. Event quantity is the only formal near
+miss: RMSE 1.565 versus 1.25 and maximum difference 2.648 versus 2.50, despite
+correlation 0.9984 and complete post-treatment sign agreement. The registered
+gate remains unchanged and therefore remains formally failed pending an
+explicit scientific decision on this narrow approximation miss.

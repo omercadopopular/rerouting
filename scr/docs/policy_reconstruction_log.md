@@ -879,3 +879,17 @@ they are not zero-filled. The v4 regression namespace and plots distinguish
 package, independent paper, and independent legal policy modes. The package
 PDF gate remains the historical replication gate; the independent legal policy
 gate remains false pending component-level validation.
+
+### 2026-07-22 — v4 clock correction and same-sample rerun
+
+The first v4 comparison accidentally reused v2 product-expanded policy panels
+and China-only status coding. Those outputs are superseded. The corrected v4
+runner uses the v3 partner-specific bilateral tariff path, freezes the original
+historical action universe at 2018-09-30, applies the paper's post-15th shift to
+both directly treated and product-level comparison dates, and assigns statuses
+2/1/0 for treated/exempt/outside-universe varieties. The paper and legal
+dynamic tariff paths now match on every row; only their event clocks differ.
+All 24 regressions were finalized. Seven of eight paper-policy specifications
+pass every registered point-estimate threshold. Event quantity remains a
+narrow formal miss (correlation 0.9984, RMSE 1.565, maximum difference 2.648).
+No threshold was changed, and the independent legal release gate remains false.
