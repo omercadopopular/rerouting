@@ -6,6 +6,13 @@ data/verification/*
 data/analysis/*
 data/reference/*
 data/rerouted_shares/*
+data/processed/*
+
+# Project-local build tools and archived generated replication outputs
+.tools/
+archive/replication/*
+!archive/replication/README.md
+!archive/replication/archive_manifest.json
 
 # Ignore large data files in root data/
 data/*.dta
