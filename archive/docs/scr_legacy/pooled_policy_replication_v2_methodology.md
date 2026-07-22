@@ -19,21 +19,25 @@ The package variables are never used to populate an independent policy field.
 
 ## Audit result on 2026-07-20
 
-The software suite passes (`152 passed, 7 warnings` after adding the v2 unit
-tests), but the pooled policy preflight is correctly blocked. The current v2
-source-qualified ledger has complete structural scope for the universal rules
-that are locally identifiable, but unresolved quota/TRQ allocation remains for
-solar, washers, and aluminum. The preflight therefore reports:
+The software suite passes after the v2 unit tests. The current v2
+source-qualified ledger has complete structural scope for the locally
+identifiable rules, but unresolved quota/TRQ allocation remains for the legal
+object in solar, washers, and aluminum. The paper-compatible object is not
+blocked by those quota tiers: it follows the authors' explicit exclusion of
+threshold-only tariff increments.
+
+The preflight now reports separate legal and paper readiness fields:
 
 ```text
-status: blocked_missing_or_conditional_scope
+status: paper_eligible_legal_quota_blocked
 blocked families: solar_201, washer_201, aluminum_232
 China Section 301 component: imported from the independently audited v2 scope ledger
 package policy used by builder: false
 ```
 
-This is an honest source blocker, not a failed regression hidden by a zero or a
-package-derived assignment.
+This is an honest legal source blocker, not a failed historical replication
+hidden by a zero or a package-derived assignment. The paper-compatible status
+records `omit_threshold_only_quota_increment_per_appendix_footnote_1`.
 
 The rule inventory records the specific unresolved objects. Solar `99034522`,
 washer `99034501/02/06`, and aluminum `99038505/06` are quota/TRQ alternatives
@@ -80,6 +84,8 @@ within-family precedence has been resolved.
 
 The legal ledger must preserve unresolved quota allocation as null and report
 it. Monthly product-level trade data do not reveal entry-level quota usage.
+The paper-compatible ledger omits only threshold-dependent increments, with an
+exclusion trace retaining the source rule and affected trade value.
 
 ## Calendar and regression targets
 
@@ -92,10 +98,9 @@ because both are called a tariff variable.
 
 ## Required completion before historical lock
 
-The missing quota/product semantics for solar, washers, and aluminum must be
-resolved from local official source material, or explicitly marked
-`blocked_missing_source`. After that, v2 must produce separate legal and
-paper-compatible panels and rerun same-sample event and dynamic regressions:
+The paper-compatible panel must pass its scope, timing, and same-sample
+regression gates. The legal panel may remain `blocked_without_entry_allocation`.
+The v2 panels then support same-sample event and dynamic regressions:
 
 - package outcomes with package policy;
 - raw outcomes with package policy;
@@ -104,7 +109,14 @@ paper-compatible panels and rerun same-sample event and dynamic regressions:
 
 The final-legal series is a legal diagnostic and is not expected to equal the
 paper-compatible event curve when legal dates differ from the paper's monthly
-encoding.
+encoding or quota tiers remain unresolved.
+
+The regression runner canonicalizes each panel by
+`id, cty_code, hs10, year, month` before constructing event or dynamic designs.
+This prevents fixed-effect encodings from depending on Parquet row order when
+two policy panels contain identical scientific rows. Checkpoint design hashes
+use a stable full-projection sort; any migrated legacy unstable hash is retained
+only as provenance.
 
 ## Reproduction
 

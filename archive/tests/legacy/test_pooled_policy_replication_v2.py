@@ -16,6 +16,7 @@ from scr.passthru_data.pooled_policy_replication_v2 import (
     paper_month_from_legal_date,
     structural_washer_links,
     specification_fingerprint,
+    PAPER_QUOTA_DECISION,
 )
 
 
@@ -112,6 +113,8 @@ def test_family_status_reports_conditional_quota_as_blocked() -> None:
     )
     status = family_source_status(links, attrs)
     assert status["washer_201"]["quota_status"] == "blocked_without_entry_allocation"
+    assert status["washer_201"]["paper_compatible_quota_decision"] == PAPER_QUOTA_DECISION
+    assert status["washer_201"]["paper_scope_status"] == "complete"
 
 
 def test_specification_fingerprint_is_stable() -> None:

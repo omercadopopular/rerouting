@@ -121,7 +121,12 @@ def _specification_fingerprint(spec: str, outcome: str) -> str:
 
 def _hash_frame(frame: pd.DataFrame, columns: list[str]) -> str:
     use = [column for column in columns if column in frame.columns]
-    values = frame[use].sort_values(use[: min(5, len(use))]).reset_index(drop=True)
+    # Sort by the complete hashed projection with a stable algorithm.  Several
+    # raw-policy panels retain duplicate source keys (for example, multiple
+    # legal rows mapping to the same regression key); sorting only by the first
+    # five key columns leaves the order of tied rows implementation-dependent,
+    # which can make a valid checkpoint fail its finalizer hash check.
+    values = frame[use].sort_values(use, kind="mergesort", na_position="last").reset_index(drop=True)
     return hashlib.sha256(pd.util.hash_pandas_object(values, index=False).values.tobytes()).hexdigest()
 
 
@@ -133,6 +138,13 @@ def _effective_sample(frame: pd.DataFrame, spec: str, outcome: str) -> pd.DataFr
 
 def _prepare(path: Path, spec: str) -> tuple[pd.DataFrame, str, str, str, str]:
     frame = read_table(path, columns=list(PROJECT_COLUMNS))
+    # The three policy panels contain the same regression rows in different
+    # Parquet orders.  Canonicalize that order before pandas/pyfixest builds
+    # categorical fixed effects; otherwise the numerical encoding can depend
+    # on file order even when every scientific input is identical.
+    sort_columns = [column for column in ("id", "cty_code", "hs10", "year", "month") if column in frame.columns]
+    if sort_columns:
+        frame = frame.sort_values(sort_columns, kind="mergesort", na_position="last").reset_index(drop=True)
     prepared = _prepare_event_study("imports", frame) if spec == "event" else _prepare_dynamic("imports", frame, package_logs=False)
     key_hash = _hash_frame(prepared, ["id", "cty_code", "hs10", "year", "month"])
     treatment_hash = _hash_frame(prepared, ["id", "cty_code", "hs10", "year", "month", "m_status2", "m_effective_mdate2", "m_stattariff2"])

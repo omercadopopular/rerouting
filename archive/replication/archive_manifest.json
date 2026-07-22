@@ -1,0 +1,24 @@
+{
+  "archive_date": "2026-07-22",
+  "reason": "historical replication methodology locked; remove exploratory generated outputs from active paths",
+  "generated_analysis_files": 1339,
+  "generated_verification_files": 2362,
+  "archived_active_paths": [
+    "data/analysis/passthru_data",
+    "data/verification/passthru_data"
+  ],
+  "canonical_replacements": [
+    "data/processed/trade",
+    "data/processed/tariffs",
+    "figs/replication",
+    "docs/replication"
+  ],
+  "explicitly_preserved_outside_archive": [
+    "data/raw",
+    "data/fajgelbaum",
+    "CPI source data",
+    "manuscript TeX sources",
+    "unrelated model and rerouting code"
+  ],
+  "git_policy": "large generated archive contents ignored; inventory and README versioned"
+}

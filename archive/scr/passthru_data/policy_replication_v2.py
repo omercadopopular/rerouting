@@ -342,17 +342,39 @@ def parse_simple_ad_valorem(value: Any) -> tuple[float | None, str]:
     return None, "compound_or_specific"
 
 
-def exclusive_active_share(effective_date: pd.Timestamp | str, year: int, month: int) -> float:
-    """Match the package's exclusive-day partial-month weighting."""
+def days_in_effect_count(effective_date: pd.Timestamp | str, year: int, month: int) -> int:
+    """Return the number of counted active days under the registered rule."""
+
     effective = pd.Timestamp(effective_date)
     period = pd.Period(year=int(year), month=int(month), freq="M")
     start = effective.to_period("M")
     if period < start:
-        return 0.0
-    if period > start:
-        return 1.0
+        return 0
     days = monthrange(int(year), int(month))[1]
-    return float((days - effective.day) / days)
+    if period > start:
+        return days
+    return max(days - int(effective.day), 0)
+
+
+def days_in_effect_share(effective_date: pd.Timestamp | str, year: int, month: int) -> float:
+    """Return the agreed days-in-effect share for a partial month.
+
+    The historical paper example is ambiguous in prose.  Our registered
+    reconstruction convention follows the stated arithmetic interpretation:
+    if a tariff becomes effective on day ``d`` of a ``D``-day month, the
+    initial-month share is ``(D-d)/D`` and the remainder is applied in the next
+    month.  Thus day 20 of a 30-day month contributes 10/30 in the initial
+    month.  The effective date itself is not counted.  Event-month assignment
+    remains a separate 15th-of-month rule.
+    """
+    days = monthrange(int(year), int(month))[1]
+    return float(days_in_effect_count(effective_date, year, month) / days)
+
+
+def exclusive_active_share(effective_date: pd.Timestamp | str, year: int, month: int) -> float:
+    """Backward-compatible alias for :func:`days_in_effect_share`."""
+
+    return days_in_effect_share(effective_date, year, month)
 
 
 def build_official_scope(config: PipelineConfig) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str]]:
@@ -875,7 +897,11 @@ def validate_policy_variables(
     monthly["raw_legal_date"] = pd.to_datetime(monthly["hs10"].map(raw_map["raw_legal_date"]), errors="coerce")
     monthly["raw_increment"] = pd.to_numeric(monthly["hs10"].map(raw_map["raw_increment"]), errors="coerce")
     monthly["fixed_2017_mfn_rate"] = pd.to_numeric(monthly["hs10"].map(comparison.set_index("hs10")["fixed_2017_mfn_rate"]), errors="coerce")
-    monthly["raw_active_share"] = [exclusive_active_share(date, year, month) if pd.notna(date) else 0.0 for date, year, month in zip(monthly["raw_legal_date"], monthly["year"], monthly["month"])]
+    monthly["raw_active_share"] = [days_in_effect_share(date, year, month) if pd.notna(date) else 0.0 for date, year, month in zip(monthly["raw_legal_date"], monthly["year"], monthly["month"])]
+    monthly["raw_active_days"] = [
+        days_in_effect_count(date, year, month) if pd.notna(date) else 0
+        for date, year, month in zip(monthly["raw_legal_date"], monthly["year"], monthly["month"])
+    ]
     monthly["raw_dayweighted_increment"] = np.where(monthly["raw_target"], monthly["raw_increment"] * monthly["raw_active_share"], 0.0)
     monthly["increment_error"] = monthly["raw_dayweighted_increment"] - monthly["pkg_dayweighted_increment"]
     monthly["independent_total_tariff"] = monthly["fixed_2017_mfn_rate"] + monthly["raw_dayweighted_increment"]
@@ -883,7 +909,11 @@ def validate_policy_variables(
     monthly["paper_target"] = monthly["hs10"].map(raw_map["paper_target"]).fillna(False)
     monthly["paper_legal_date"] = pd.to_datetime(monthly["hs10"].map(raw_map["paper_legal_date"]), errors="coerce")
     monthly["paper_increment"] = pd.to_numeric(monthly["hs10"].map(raw_map["paper_increment"]), errors="coerce")
-    monthly["paper_active_share"] = [exclusive_active_share(date, year, month) if pd.notna(date) else 0.0 for date, year, month in zip(monthly["paper_legal_date"], monthly["year"], monthly["month"])]
+    monthly["paper_active_share"] = [days_in_effect_share(date, year, month) if pd.notna(date) else 0.0 for date, year, month in zip(monthly["paper_legal_date"], monthly["year"], monthly["month"])]
+    monthly["paper_active_days"] = [
+        days_in_effect_count(date, year, month) if pd.notna(date) else 0
+        for date, year, month in zip(monthly["paper_legal_date"], monthly["year"], monthly["month"])
+    ]
     monthly["paper_dayweighted_increment"] = np.where(monthly["paper_target"], monthly["paper_increment"] * monthly["paper_active_share"], 0.0)
     monthly["paper_increment_error"] = monthly["paper_dayweighted_increment"] - monthly["pkg_dayweighted_increment"]
     common_scope = monthly["hs10"].isin(set(comparison.loc[both, "hs10"].astype(str)))
@@ -962,7 +992,21 @@ def validate_policy_variables(
     root = artifact_root(config)
     sources = dict(source_fingerprints)
     _write_detailed(config, comparison, root / "section301_product_variable_comparison.parquet", category="detailed_diagnostic", keys=["hs10"], sources=sources, specification={"thresholds": VARIABLE_THRESHOLDS})
-    _write_detailed(config, monthly, root / "section301_monthly_rate_comparison.parquet", category="detailed_diagnostic", keys=["hs10", "year", "month"], sources=sources, specification={"active_share": "exclusive effective day", "total_tariff": "fixed_2017_mfn_plus_dayweighted_increment"})
+    _write_detailed(
+        config,
+        monthly,
+        root / "section301_monthly_rate_comparison.parquet",
+        category="detailed_diagnostic",
+        keys=["hs10", "year", "month"],
+        sources=sources,
+        specification={
+            "active_share": "days_in_effect_excluding_effective_date",
+            "initial_month_formula": "increment * (days_in_month - effective_day) / days_in_month",
+            "next_month_remainder_formula": "increment * effective_day / days_in_month",
+            "event_month_cutoff": "effective_day <= 15 current month; > 15 subsequent month",
+            "total_tariff": "fixed_2017_mfn_plus_dayweighted_increment",
+        },
+    )
     summary = pd.DataFrame([{"metric": name, "value": value, "threshold": VARIABLE_THRESHOLDS.get(name), "passed": checks.get(name), "role": "registered_gate" if name in VARIABLE_THRESHOLDS else "diagnostic"} for name, value in metrics.items()])
     summary.to_csv(root / "section301_variable_validation_summary.csv", index=False)
     pd.DataFrame([{"metric": name, "value": value, "threshold": PAPER_COMPATIBILITY_THRESHOLDS.get(name), "passed": paper_checks.get(name), "role": "registered_gate" if name in PAPER_COMPATIBILITY_THRESHOLDS else "diagnostic"} for name, value in paper_metrics.items()]).to_csv(root / "paper_compatibility_validation_summary.csv", index=False)

@@ -1,6 +1,19 @@
 {
   "version": "historical_policy_benchmark_contract_v1",
   "published_comparison_rule": "Only a reconstruction with the same policy variable, dating convention, sample, outcome, estimator, baseline, fixed effects, and clusters as the original do-file may enter the published-paper replication gate.",
+  "historical_policy_exclusions": {
+    "antidumping_and_countervailing_duties": "excluded",
+    "unrelated_2018_treaty_changes": "excluded",
+    "quota_threshold_only_increments": "excluded_per_online_appendix_footnote_1",
+    "quota_threshold_value_reference": "$16m_of_approximately_$300bn_targeted_imports"
+  },
+  "day_scaled_rate_convention": {
+    "initial_month_share": "(days_in_month - effective_day) / days_in_month",
+    "effective_day_counted": false,
+    "next_month_remainder": "effective_day / days_in_month",
+    "event_month_cutoff": "effective_day <= 15 current month; > 15 subsequent month",
+    "package_fields_remain_anchor": ["m_stattariff2", "stat2tf"]
+  },
   "objects": {
     "paper_compatible": {
       "source_mode": "paper_compatible_from_independent_legal_ledger",

@@ -9,6 +9,7 @@ from scr.passthru_data.policy_regression_v2 import (
     POLICY_SOURCE_MODE_LEGAL,
     POLICY_SOURCE_MODE_PAPER,
     _curve_metrics,
+    _hash_frame,
     clone_source_fit_id,
     expected_estimator_fit_ids,
     expected_fit_ids,
@@ -25,6 +26,7 @@ from scr.passthru_data.policy_replication_v2 import (
     assign_policy_to_products,
     assign_paper_compatible_policy_to_products,
     decode_pdf_literal_strings,
+    days_in_effect_share,
     exclusive_active_share,
     extract_list3_partial_scope,
     extract_wave_scope,
@@ -76,6 +78,31 @@ def test_exclusive_partial_month_shares_match_package_convention() -> None:
     assert math.isclose(exclusive_active_share("2018-09-24", 2018, 9), 6 / 30)
     assert exclusive_active_share("2018-09-24", 2018, 8) == 0.0
     assert exclusive_active_share("2018-09-24", 2018, 10) == 1.0
+
+
+def test_policy_design_hash_is_stable_under_duplicate_row_order() -> None:
+    left = pd.DataFrame(
+        {
+            "id": [1, 1, 2],
+            "cty_code": [5700, 5700, 1000],
+            "hs10": ["0101010101", "0101010101", "0202020202"],
+            "year": [2018, 2018, 2018],
+            "month": [7, 7, 7],
+            "x": [0.2, 0.1, 0.0],
+        }
+    )
+    right = left.iloc[[1, 2, 0]].reset_index(drop=True)
+    columns = ["id", "cty_code", "hs10", "year", "month", "x"]
+    assert _hash_frame(left, columns) == _hash_frame(right, columns)
+
+
+def test_days_in_effect_uses_remaining_days_and_separates_event_cutoff() -> None:
+    # The registered arithmetic convention is the number of days after the
+    # effective date.  A 15pp increase on day 20 of a 30-day month therefore
+    # contributes 15 * 10 / 30 = 5pp initially and 10pp in the next month.
+    assert math.isclose(days_in_effect_share("2018-09-20", 2018, 9), 10 / 30)
+    assert math.isclose(0.15 * days_in_effect_share("2018-09-20", 2018, 9), 0.05)
+    assert math.isclose(0.15 * (1 - days_in_effect_share("2018-09-20", 2018, 9)), 0.10)
 
 
 def test_partial_scope_exclusions_are_applied_at_hs10() -> None:
