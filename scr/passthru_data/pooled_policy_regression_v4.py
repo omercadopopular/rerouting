@@ -46,6 +46,23 @@ THRESHOLDS = {
     "post_treatment_sign_agreement": 0.50,
 }
 HISTORICAL_ACTION_CUTOFF = "2018-09-30"
+FINAL_CHART_SERIES = (
+    ("original", "#202020", "Original regression", "-", "o"),
+    ("independent_paper_full_policy", "#2ca02c", "Replication", "-", "o"),
+    (
+        "independent_legal_full_policy",
+        "#ff7f0e",
+        "Alternative timing (independent policy, legal clock)",
+        "--",
+        "s",
+    ),
+)
+OUTCOME_LABELS = {
+    "val": "Import value",
+    "q1": "Quantity",
+    "p": "Pre-duty unit value",
+    "pduty": "Duty-inclusive unit value",
+}
 
 
 def root(config: PipelineConfig) -> Path:
@@ -383,37 +400,66 @@ def finalize(config: PipelineConfig) -> dict[str, Any]:
     return manifest
 
 
+def _plot_line_with_confidence(
+    axis: Any,
+    frame: pd.DataFrame,
+    *,
+    horizon: str,
+    color: str,
+    label: str,
+    linestyle: str,
+    marker: str,
+) -> None:
+    """Draw a coefficient path and its 95-percent confidence band."""
+    line = frame.sort_values(horizon)
+    x = pd.to_numeric(line[horizon], errors="raise").to_numpy(dtype=float)
+    estimate = pd.to_numeric(line["estimate"], errors="raise").to_numpy(dtype=float)
+    conf_low = pd.to_numeric(line["conf_low"], errors="coerce").to_numpy(dtype=float)
+    conf_high = pd.to_numeric(line["conf_high"], errors="coerce").to_numpy(dtype=float)
+    axis.fill_between(x, conf_low, conf_high, color=color, alpha=0.14, linewidth=0, zorder=1)
+    axis.plot(
+        x,
+        estimate,
+        color=color,
+        linestyle=linestyle,
+        marker=marker,
+        markersize=3,
+        linewidth=1.8,
+        label=label,
+        zorder=3,
+    )
+
+
 def _plot(config: PipelineConfig, frames: dict[tuple[str, str, str], pd.DataFrame]) -> dict[str, str]:
     figure_root = root(config) / "figures"
     figure_root.mkdir(parents=True, exist_ok=True)
     package_root = config.verification_dir / "trade_regressions" / "package_benchmark_v5"
-    reference_path = package_root / "reference" / "package_pdf_reference.parquet"
-    reference = read_table(reference_path)
-    colors = {
-        "package_full_policy_anchor": ("#1f77b4", "Package policy, same raw sample"),
-        "independent_paper_full_policy": ("#2ca02c", "Independent policy, paper clock"),
-        "independent_legal_full_policy": ("#ff7f0e", "Independent policy, legal clock"),
-    }
     outputs: dict[str, str] = {}
     for spec in SPECS:
         horizon = "event_time" if spec == "event" else "horizon"
         package = read_table(package_root / f"package_full_{spec}_coefficients.parquet")
         fig, axes = plt.subplots(2, 2, figsize=(13, 8.5), sharex=True)
         for axis, outcome in zip(axes.flat, OUTCOMES):
-            package_line = package.loc[(package["spec"] == spec) & (package["outcome"] == outcome)].sort_values(horizon)
-            axis.plot(package_line[horizon], package_line["estimate"], color="black", linewidth=2.0, label="Authors' package benchmark")
-            ref = reference.loc[(reference["spec"] == spec) & (reference["outcome"] == outcome)].sort_values("horizon")
-            axis.scatter(ref["horizon"], ref["reference_value"], color="0.55", s=20, zorder=4, label="Published PDF reference")
-            for mode, (color, label) in colors.items():
-                line = frames[(mode, spec, outcome)].sort_values(horizon)
-                axis.plot(line[horizon], line["estimate"], color=color, marker="o", markersize=3, linewidth=1.6, label=label)
+            package_line = package.loc[(package["spec"] == spec) & (package["outcome"] == outcome)]
+            for mode, color, label, linestyle, marker in FINAL_CHART_SERIES:
+                line = package_line if mode == "original" else frames[(mode, spec, outcome)]
+                _plot_line_with_confidence(
+                    axis,
+                    line,
+                    horizon=horizon,
+                    color=color,
+                    label=label,
+                    linestyle=linestyle,
+                    marker=marker,
+                )
             axis.axhline(0, color="0.25", linewidth=.7)
             axis.axvline(0, color="0.6", linewidth=.7, linestyle="--")
-            axis.set_title(outcome)
+            axis.set_title(OUTCOME_LABELS[outcome])
             axis.grid(alpha=.2)
         handles, labels = axes[0, 0].get_legend_handles_labels()
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(.5, .985), ncol=3, frameon=False, fontsize=8)
-        fig.suptitle(f"Historical policy substitution: {spec}", y=.925)
+        title = "Event study" if spec == "event" else "Dynamic response"
+        fig.suptitle(f"Historical tariff replication: {title}", y=.925)
         fig.tight_layout(rect=(0, 0, 1, .87))
         path = figure_root / f"pooled_policy_v4_{spec}.png"
         fig.savefig(path, dpi=190)
