@@ -1,0 +1,26 @@
+{
+  "methodology_status": "accepted_with_disclosed_quantity_exception",
+  "package_import_pdf_gate": {
+    "status": "passed",
+    "fits": 8,
+    "aligned_points": 104,
+    "maximum_absolute_difference": 1.0096198617141974,
+    "threshold": 1.10
+  },
+  "fixed_raw_outcome_rows": 4197758,
+  "policy_scope": ["MFN", "Section 201", "Section 232", "Section 301"],
+  "independent_paper_clock_point_metrics": [
+    {"spec": "event", "outcome": "val", "correlation": 0.9993884940, "rmse": 1.0726723762, "max_abs_difference": 1.9403406896, "status": "passed"},
+    {"spec": "event", "outcome": "q1", "correlation": 0.9983578793, "rmse": 1.5649596018, "max_abs_difference": 2.6478353029, "status": "failed_registered_threshold"},
+    {"spec": "event", "outcome": "p", "correlation": 0.9702597807, "rmse": 0.5280310559, "max_abs_difference": 1.4190555390, "status": "passed"},
+    {"spec": "event", "outcome": "pduty", "correlation": 0.9978536864, "rmse": 0.4691465682, "max_abs_difference": 1.4171768500, "status": "passed"},
+    {"spec": "dynamic", "outcome": "val", "correlation": 0.9986039929, "rmse": 0.1202863982, "max_abs_difference": 0.2337579501, "status": "passed"},
+    {"spec": "dynamic", "outcome": "q1", "correlation": 0.9970107513, "rmse": 0.1662785181, "max_abs_difference": 0.2988831069, "status": "passed"},
+    {"spec": "dynamic", "outcome": "p", "correlation": 0.9598744953, "rmse": 0.0307302062, "max_abs_difference": 0.0594559959, "status": "passed"},
+    {"spec": "dynamic", "outcome": "pduty", "correlation": 0.9978231864, "rmse": 0.0403793214, "max_abs_difference": 0.0890584238, "status": "passed"}
+  ],
+  "point_thresholds": {"correlation_minimum": 0.95, "rmse_maximum": 1.25, "max_abs_difference_maximum": 2.50, "post_treatment_sign_agreement_minimum": 0.50},
+  "legal_clock_role": "alternative_timing_diagnostic",
+  "post_2019_extension_rule": "hold validated April 2019 tariff level fixed",
+  "event_2025_ready": false
+}

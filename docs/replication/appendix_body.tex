@@ -1,0 +1,88 @@
+\section{Data Sources and Construction}
+
+\subsection{Trade values and quantities}
+
+We construct monthly U.S. imports from the U.S. Census Bureau fixed-width merchandise-trade archives. The unit of observation is partner country $c$, ten-digit Harmonized System product $i$, and month $t$. The source fields are general customs value, general CIF value, first quantity, ordinary duty value, and calculated duty value. Each archive is parsed independently, aggregated to the canonical key, reconciled to its source total, and stored as ZSTD-compressed Parquet with source fingerprints.
+
+Let $CIF_{ict}$ denote general CIF value, $Q_{ict}$ first quantity, and $D_{ict}$ calculated duties. The four import outcomes are
+\begin{align}
+m\_val_{ict}&=CIF_{ict}/10^6,&
+m\_q1_{ict}&=Q_{ict}/10^6,\\
+m\_p_{ict}&=CIF_{ict}/Q_{ict},&
+m\_pduty_{ict}&=(CIF_{ict}+D_{ict})/Q_{ict}.
+\end{align}
+Unit values are defined only for positive quantities. Missing quantities and observed zeros are retained as distinct source states. In particular, duty-inclusive unit value uses observed Census calculated duties; it is not constructed by multiplying price by the independently reconstructed tariff.
+
+\subsection{Tariffs}
+
+The independently reconstructed bilateral tariff combines the applicable most-favored-nation rate with the trade-war increments:
+\begin{equation}
+\tau_{ict}=\tau^{MFN}_{it}+\Delta\tau^{201}_{ict}+\Delta\tau^{232}_{ict}+\Delta\tau^{301}_{ict}.
+\end{equation}
+The baseline and product schedules are taken from official USITC HTS releases, presidential proclamations, Federal Register annexes, and USTR Section 301 notices. Structured tables are used when available; reviewed PDF-table extractions are used for official annexes without a suitable tabular release. Each component retains its source, rate, legal date, and product/partner scope.
+
+Consistent with the original paper's appendix, the construction excludes antidumping and countervailing duties, unrelated treaty changes, and quota-contingent increments that apply only once an entry-level threshold is crossed. Monthly partner--HS10 data do not identify the tier used by an individual customs entry. The original authors report that the affected quota-threshold varieties account for approximately \$16 million out of roughly \$300 billion in annual targeted imports.
+
+\subsection{Timing conventions}
+
+If an increment $\Delta\tau$ takes effect on day $d$ of a $D$-day month, the locked day-weighted initial-month increment follows days in effect:
+\begin{equation}
+\Delta\tau^{dw}_{t}=\Delta\tau\frac{D-d}{D},\qquad
+\Delta\tau^{remainder}_{t+1}=\Delta\tau\frac{d}{D}.
+\end{equation}
+The paper-compatible event clock assigns the legal month when $d\leq15$ and the following month when $d>15$. The legal clock instead uses the calendar month containing the effective date. Only the paper-clock reconstruction is compared to the paper; the legal-clock curve is an alternative timing exercise.
+
+Untreated products require an event origin to remain in the event-study controls. Following the Stata program, the date is assigned from the earliest date in the same NAICS4 industry, then NAICS3, then NAICS2. February 2018 is the final fallback. This operation does not change treatment status.
+
+\section{Replication and Extension Results}
+
+\subsection{Event-study specification}
+
+The locked event study estimates
+\begin{equation}
+100\log y_{ict}=\sum_{k=-5}^{6}\beta_k\mathbf{1}\{T_i=1,event_{it}=k\}
++\sum_{k=-5}^{6}\gamma_k\mathbf{1}\{event_{it}=k\}
++\alpha_{ic}+\delta_{ct}+\eta_{it}+\varepsilon_{ict},
+\end{equation}
+where month $-6$ is omitted and the right tail is top-coded at $6+$. The fixed effects are product--country, country--month, and product--month. Standard errors are clustered by HS8 and partner country.
+
+\subsection{Dynamic specification}
+
+Let $x_{ict}=\Delta\log(1+\tau_{ict})$ and let $\Delta\ell y_{ict}$ be the first difference of the corresponding log outcome. We estimate
+\begin{equation}
+\Delta\ell y_{ict}=\sum_{k=1}^{6}\phi_{-k}F^kx_{ict}+\phi_0x_{ict}
++\sum_{k=1}^{K}\phi_kL^kx_{ict}+\eta_{it}+\delta_{ct}+\kappa_{cs}+u_{ict},
+\end{equation}
+including the missing-lead and missing-lag indicators used by the original Stata code. Fixed effects are product--month, country--month, and country--NAICS4; clustering is by HS8 and country. Plotted effects are cumulative linear combinations, with standard errors computed from the full covariance matrix. The paper replication sets $K=6$. A separate extension sets $K=24$ and does not alter the locked benchmark.
+
+\subsection{Validation evidence}
+
+The package-only Python estimator produces eight import fits with thirteen horizons each. Across 104 PDF reference points, the maximum absolute difference is 1.009620 log points, below the preregistered 1.10 tolerance.
+
+Table~\ref{tab:policy} compares the independently reconstructed paper-clock policy with the authors' policy anchor while holding the raw Census outcome sample fixed. Seven of eight point-estimate comparisons satisfy the registered thresholds. Event-study quantity is the disclosed exception.
+
+\begin{table}[ht]
+\centering
+\caption{Independent policy substitution on the common raw-outcome sample}
+\label{tab:policy}
+\begin{tabular}{llrrr}
+\toprule
+Specification & Outcome & Correlation & RMSE & Maximum difference\\
+\midrule
+Event & Value & 0.9994 & 1.0727 & 1.9403\\
+Event & Quantity & 0.9984 & 1.5650 & 2.6478\\
+Event & Pre-duty price & 0.9703 & 0.5280 & 1.4191\\
+Event & Duty-inclusive price & 0.9979 & 0.4691 & 1.4172\\
+Dynamic & Value & 0.9986 & 0.1203 & 0.2338\\
+Dynamic & Quantity & 0.9970 & 0.1663 & 0.2989\\
+Dynamic & Pre-duty price & 0.9599 & 0.0307 & 0.0595\\
+Dynamic & Duty-inclusive price & 0.9978 & 0.0404 & 0.0891\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The accepted decision is therefore \emph{historical methodology accepted with a disclosed quantity exception}. It is not an assertion that the formal eight-of-eight policy gate passed. The corresponding figures distinguish the original package regression, the independent paper-clock replication, and the independent legal-clock alternative.
+
+\subsection{Longer horizon}
+
+The separate $[-6,24]$ exercise uses archive-native CIF trade through October 2020. The original package series remains locked to $[-6,6]$. Because post-April-2019 actions are outside the validated historical tariff ledger, the extension freezes the April 2019 bilateral tariff level. It is therefore a persistence exercise under the locked historical treatment, not an estimate of later tariff actions and not a 2025 event study.
