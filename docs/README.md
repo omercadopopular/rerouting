@@ -18,3 +18,6 @@ The accepted historical methodology is deliberately narrower than a claim that e
 - [Replication results and gates](replication_results.md)
 - [Reproducibility instructions](reproducibility.md)
 - [Academic appendix](replication/appendix.pdf)
+- [February 2025 extension design and current gates](extension.md)
+
+The archive-native 2025 trade-data gate passes through December 2025. The independent 2025 statutory-policy gate remains blocked, so the appendix documents the registered `[-6,+6]` and support-limited `[-6,+10]` specifications but does not present 2025 estimates as completed empirical results.

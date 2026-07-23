@@ -46,6 +46,12 @@ The locked event study estimates
 \end{equation}
 where month $-6$ is omitted and the right tail is top-coded at $6+$. The fixed effects are product--country, country--month, and product--month. Standard errors are clustered by HS8 and partner country.
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_event.pdf}
+\caption{Locked historical event-study replication, $[-6,+6]$.}
+\end{figure}
+
 \subsection{Dynamic specification}
 
 Let $x_{ict}=\Delta\log(1+\tau_{ict})$ and let $\Delta\ell y_{ict}$ be the first difference of the corresponding log outcome. We estimate
@@ -54,6 +60,12 @@ Let $x_{ict}=\Delta\log(1+\tau_{ict})$ and let $\Delta\ell y_{ict}$ be the first
 +\sum_{k=1}^{K}\phi_kL^kx_{ict}+\eta_{it}+\delta_{ct}+\kappa_{cs}+u_{ict},
 \end{equation}
 including the missing-lead and missing-lag indicators used by the original Stata code. Fixed effects are product--month, country--month, and country--NAICS4; clustering is by HS8 and country. Plotted effects are cumulative linear combinations, with standard errors computed from the full covariance matrix. The paper replication sets $K=6$. A separate extension sets $K=24$ and does not alter the locked benchmark.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_dynamic.pdf}
+\caption{Locked historical dynamic pass-through replication, $[-6,+6]$.}
+\end{figure}
 
 \subsection{Validation evidence}
 
@@ -86,3 +98,49 @@ The accepted decision is therefore \emph{historical methodology accepted with a 
 \subsection{Longer horizon}
 
 The separate $[-6,24]$ exercise uses archive-native CIF trade through October 2020. The original package series remains locked to $[-6,6]$. Because post-April-2019 actions are outside the validated historical tariff ledger, the extension freezes the April 2019 bilateral tariff level. It is therefore a persistence exercise under the locked historical treatment, not an estimate of later tariff actions and not a 2025 event study.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_event_h24.pdf}
+\caption{Historical event-study persistence exercise, $[-6,+24]$.}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_dynamic_h24.pdf}
+\caption{Historical dynamic persistence exercise, $[-6,+24]$.}
+\end{figure}
+
+\section{The 2025 Tariff Episode}
+
+\subsection{Archive-native trade panel}
+
+The new-episode construction uses the Census fixed-width import archives directly and does not reuse the policy-bearing historical workhorse. The current event panel covers August 2024 through December 2025, or 17 months, and contains 4,949,734 unique partner--HS10--month observations. Every monthly CIF total reconciles exactly to its source member, all partitions use ZSTD compression, and no package-policy variable enters the panel.
+
+The February 2025 event therefore has a complete $[-6,+6]$ window and an available long window of $[-6,+10]$. The registered long target remains $[-6,+24]$ and will expand without zero-padding when trade through February 2027 becomes available.
+
+\subsection{Policy construction and present gate}
+
+The policy source inventory records the China IEEPA action effective February 4, the March increase, reciprocal tariffs and their China escalation and suspension, and the 2025 Section 232 steel, aluminum, and automobile actions. The legal tariff path uses the locked initial-month weight $(D-d)/D$ for an action effective on day $d$ of a $D$-day month; the event clock assigns dates after the fifteenth to the next month.
+
+Estimation is not yet authorized. The local archive contains 33 official 2025 HTS releases, but the product-level ledger still requires materializing and reviewing versioned reciprocal-tariff exclusions, content-dependent Section 232 rules, automobile USMCA/content treatment, complete partner modifications, and the inherited December 2024 MFN/201/232/301 baseline on the 2025 HS10 universe. Observed calculated duties are retained as an outcome component but are not substituted for the statutory treatment. Accordingly, the following figure hooks remain empty until the policy gate passes.
+
+\IfFileExists{../../figs/extension_2025/china_hk_event_short.pdf}{%
+\begin{figure}[ht]\centering
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_event_short.pdf}
+\caption{February 2025 event study, $[-6,+6]$.}\end{figure}}{}
+
+\IfFileExists{../../figs/extension_2025/china_hk_event_long.pdf}{%
+\begin{figure}[ht]\centering
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_event_long.pdf}
+\caption{February 2025 event study, support-limited long horizon.}\end{figure}}{}
+
+\IfFileExists{../../figs/extension_2025/china_hk_dynamic_short.pdf}{%
+\begin{figure}[ht]\centering
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_dynamic_short.pdf}
+\caption{February 2025 dynamic pass-through, $[-6,+6]$.}\end{figure}}{}
+
+\IfFileExists{../../figs/extension_2025/china_hk_dynamic_long.pdf}{%
+\begin{figure}[ht]\centering
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_dynamic_long.pdf}
+\caption{February 2025 dynamic pass-through, support-limited long horizon.}\end{figure}}{}

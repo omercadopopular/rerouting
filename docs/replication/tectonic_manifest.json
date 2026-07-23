@@ -5,5 +5,5 @@
   "platform": "x86_64-pc-windows-msvc",
   "version": "0.16.9",
   "compiled_pdf": "docs/replication/appendix.pdf",
-  "compiled_pdf_sha256": "49bb17e9c15e68907ea434bd489cad30a33de10b5d65bda11543b821b390085d"
+  "compiled_pdf_sha256": "3814ac8fba331367bc3484eca7dacea665de84f4611d370e4def3d5b661c26b1"
 }
