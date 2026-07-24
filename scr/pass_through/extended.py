@@ -274,6 +274,132 @@ def plot(config: PipelineConfig) -> dict[str, str]:
     return outputs
 
 
+def plot_dynamic_h12(config: PipelineConfig) -> dict[str, str]:
+    """Extend Appendix Figure 2 to h=12 using validated h=24 fits.
+
+    The authors-package benchmark remains available only through h=6. The
+    independent replication and legal-clock sensitivity continue through
+    h=12 and are not extrapolated beyond estimated coefficients.
+    """
+    package_root = config.processed_trade_dir / "package_benchmark"
+    figure_root = config.repo_root / "figs" / "replication"
+    figure_root.mkdir(parents=True, exist_ok=True)
+    colors = {
+        "independent_paper_full_policy": (
+            "#2ca02c",
+            "Replication",
+            "-",
+        ),
+        "independent_legal_full_policy": (
+            "#ff7f0e",
+            "Alternative timing (legal clock)",
+            "--",
+        ),
+    }
+    labels = {
+        "val": "Import value",
+        "q1": "Quantity",
+        "p": "Pre-duty unit value",
+        "pduty": "Duty-inclusive unit value",
+    }
+    package = read_table(
+        package_root / "package_full_dynamic_coefficients.parquet"
+    )
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(13, 8.5),
+        sharex=True,
+    )
+    for axis, outcome in zip(axes.flat, OUTCOMES):
+        original = package.loc[
+            (package["spec"] == "dynamic")
+            & (package["outcome"] == outcome)
+        ].sort_values("horizon")
+        axis.fill_between(
+            original["horizon"].to_numpy(float),
+            original["conf_low"].to_numpy(float),
+            original["conf_high"].to_numpy(float),
+            color="#202020",
+            alpha=0.12,
+        )
+        axis.plot(
+            original["horizon"],
+            original["estimate"],
+            color="#202020",
+            marker="o",
+            markersize=3,
+            label="Original regression (through +6)",
+        )
+        for mode in MODES:
+            line = read_table(
+                coefficient_path(
+                    config,
+                    mode,
+                    "dynamic",
+                    outcome,
+                )
+            )
+            line = line.loc[line["horizon"] <= 12].sort_values(
+                "horizon"
+            )
+            color, label, style = colors[mode]
+            axis.fill_between(
+                line["horizon"].to_numpy(float),
+                line["conf_low"].to_numpy(float),
+                line["conf_high"].to_numpy(float),
+                color=color,
+                alpha=0.12,
+            )
+            axis.plot(
+                line["horizon"],
+                line["estimate"],
+                color=color,
+                linestyle=style,
+                linewidth=1.7,
+                label=label,
+            )
+        axis.axhline(0, color=".25", linewidth=.7)
+        axis.axvline(0, color=".6", linewidth=.7, linestyle="--")
+        axis.set_xlim(-6.5, 12.5)
+        axis.set_title(labels[outcome])
+        axis.grid(alpha=.2)
+    handles, legend = axes[0, 0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        legend,
+        loc="upper center",
+        bbox_to_anchor=(.5, .985),
+        ncol=3,
+        frameon=False,
+        fontsize=8,
+    )
+    fig.suptitle(
+        "Historical dynamic response: replication through +12 months",
+        y=.925,
+    )
+    fig.tight_layout(rect=(0, 0, 1, .87))
+    destination = (
+        figure_root / "historical_replication_dynamic_h12"
+    )
+    fig.savefig(destination.with_suffix(".png"), dpi=190)
+    fig.savefig(destination.with_suffix(".pdf"))
+    plt.close(fig)
+    result = {
+        "dynamic_h12": _relative(
+            config,
+            destination.with_suffix(".pdf"),
+        ),
+        "original_benchmark_last_horizon": 6,
+        "replication_last_horizon": 12,
+    }
+    write_metadata_json(
+        root(config) / "figure_h12_manifest.json",
+        {"version": VERSION, **result},
+    )
+    return result
+
+
 def main() -> int:
     import argparse
 
@@ -281,6 +407,7 @@ def main() -> int:
     parser.add_argument("--build-panels", action="store_true")
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--plot-h12", action="store_true")
     parser.add_argument("--mode", choices=(*MODES, "all"), default="all")
     parser.add_argument("--spec", choices=(*SPECS, "all"), default="all")
     parser.add_argument("--outcome", choices=(*OUTCOMES, "all"), default="all")
@@ -296,6 +423,8 @@ def main() -> int:
         print(json.dumps(run_fits(config, modes=modes, specs=specs, outcomes=outcomes, overwrite=args.overwrite), indent=2))
     if args.plot:
         print(json.dumps(plot(config), indent=2))
+    if args.plot_h12:
+        print(json.dumps(plot_dynamic_h12(config), indent=2))
     return 0
 
 

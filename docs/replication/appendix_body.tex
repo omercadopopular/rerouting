@@ -59,12 +59,22 @@ Let $x_{ict}=\Delta\log(1+\tau_{ict})$ and let $\Delta\ell y_{ict}$ be the first
 \Delta\ell y_{ict}=\sum_{k=1}^{6}\phi_{-k}F^kx_{ict}+\phi_0x_{ict}
 +\sum_{k=1}^{K}\phi_kL^kx_{ict}+\eta_{it}+\delta_{ct}+\kappa_{cs}+u_{ict},
 \end{equation}
-including the missing-lead and missing-lag indicators used by the original Stata code. Fixed effects are product--month, country--month, and country--NAICS4; clustering is by HS8 and country. Plotted effects are cumulative linear combinations, with standard errors computed from the full covariance matrix. The paper replication sets $K=6$. A separate extension sets $K=24$ and does not alter the locked benchmark.
+including the missing-lead and missing-lag indicators used by the original
+Stata code. Fixed effects are product--month, country--month, and
+country--NAICS4; clustering is by HS8 and country. Plotted effects are
+cumulative linear combinations, with standard errors computed from the full
+covariance matrix. The paper replication sets $K=6$. Appendix Figure~2 plots
+the independent reconstruction through $K=12$, while the separately labeled
+long-horizon exercise sets $K=24$; neither changes the locked authors-package
+benchmark.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_dynamic.pdf}
-\caption{Locked historical dynamic pass-through replication, $[-6,+6]$.}
+\includegraphics[width=0.96\textwidth]{../../figs/replication/historical_replication_dynamic_h12.pdf}
+\caption{Historical dynamic pass-through. The original-regression benchmark
+remains locked at $[-6,+6]$; the independent replication and legal-clock
+sensitivity continue through $+12$ using the validated longer-horizon
+coefficients.}
 \end{figure}
 
 \subsection{Validation evidence}
@@ -111,36 +121,230 @@ The separate $[-6,24]$ exercise uses archive-native CIF trade through October 20
 \caption{Historical dynamic persistence exercise, $[-6,+24]$.}
 \end{figure}
 
-\section{The 2025 Tariff Episode}
+\section{The 2025 Tariff Episode under the Fajgelbaum--Khandelwal Design}
 
-\subsection{Archive-native trade panel}
+\subsection{Applied-tariff data}
 
-The new-episode construction uses the Census fixed-width import archives directly and does not reuse the policy-bearing historical workhorse. The current event panel covers August 2024 through December 2025, or 17 months, and contains 4,949,734 unique partner--HS10--month observations. Every monthly CIF total reconciles exactly to its source member, all partitions use ZSTD compression, and no package-policy variable enters the panel.
+For the 2025 application we follow Fajgelbaum and Khandelwal (2026) rather
+than imposing a common statutory event date.  The Census import-detail files
+report imports for consumption separately by origin, ten-digit HTS product,
+month, and rate provision.  We first aggregate districts and sub-country
+records within rate provision, and then aggregate the fifteen provisions to
+the origin--product--month variety.
 
-The February 2025 event therefore has a complete $[-6,+6]$ window and an available long window of $[-6,+10]$. The registered long target remains $[-6,+24]$ and will expand without zero-padding when trade through February 2027 becomes available.
+Let $V_{igt}$ be consumption customs value, $Q_{igt}$ first consumption
+quantity, and $D_{igt}$ recorded calculated duty.  The realized tariff and
+unit values are
+\begin{align}
+\tau^{applied}_{igt}&=D_{igt}/V_{igt},\\
+p_{igt}&=V_{igt}/Q_{igt},&
+p^{duty}_{igt}&=(V_{igt}+D_{igt})/Q_{igt}.
+\end{align}
+These definitions replace the superseded construction that combined
+general-import CIF and quantity with consumption duties.  Rate provision 79
+contains Chapter 99 imports for which Census does not report calculated
+duties.  We do not impute an unobserved duty. The canonical measure retains
+provision-79 value in the denominator, sums only recorded duties, and flags the
+resulting applied rate as incomplete. A separately labeled sensitivity excludes
+provision 79 from both numerator and denominator.
 
-\subsection{Policy construction and present gate}
+\subsection{Local-projection event study}
 
-The policy source inventory records the China IEEPA action effective February 4, the March increase, reciprocal tariffs and their China escalation and suspension, and the 2025 Section 232 steel, aluminum, and automobile actions. The legal tariff path uses the locked initial-month weight $(D-d)/D$ for an action effective on day $d$ of a $D$-day month; the event clock assigns dates after the fifteenth to the next month.
+For each variety, treatment begins in the first month in which the applied
+tariff exceeds its maximum in the pre-war year by more than two percentage
+points.  The state remains absorbing.  At each horizon, newly treated
+varieties are compared with clean controls satisfying $D_{i,t+h}=0$ for
+post-treatment horizons. For pretrend horizons $h\leq-2$, controls remain
+untreated at event base $t$; $h=-1$ is normalized:
+\begin{equation}
+y_{ig,t+h}-y_{ig,t-1}
+=\alpha_{gt}+\alpha_i+\beta_h\Delta D_{igt}+\varepsilon_{igt}.
+\end{equation}
+The fixed effects are product--base-month and origin, and standard errors are
+clustered by origin and HS8.  Outcomes are the log applied tariff, import
+value, before-tariff unit value, and duty-inclusive unit value.  The
+harmonized 2018--19 estimate uses horizons $[-6,12]$; the 2025 estimate uses
+$[-6,6]$. Horizon $-1$ is the normalized zero reference. The China and
+rest-of-world curves select different newly treated cohorts but retain the
+full clean-control pool; restricting the estimation universe to China before
+absorbing product--time effects would eliminate the identifying variation.
 
-Estimation is not yet authorized. The local archive contains 33 official 2025 HTS releases, but the product-level ledger still requires materializing and reviewing versioned reciprocal-tariff exclusions, content-dependent Section 232 rules, automobile USMCA/content treatment, complete partner modifications, and the inherited December 2024 MFN/201/232/301 baseline on the 2025 HS10 universe. Observed calculated duties are retained as an outcome component but are not substituted for the statutory treatment. Accordingly, the following figure hooks remain empty until the policy gate passes.
+The completed paper-window event grid contains 16 curves and 232
+horizon-specific fits. At
+$h=6$, the all-origin 2025 estimates are 11.390 applied-tariff points, -22.444
+import-value log points, -1.239 pre-duty-price points, and 10.157
+duty-inclusive-price points. The corresponding China estimates are 19.321,
+-54.529, -0.176, and 19.148; for the rest of the world they are 9.833,
+-16.368, -1.670, and 8.166. These reproduce the paper's principal qualitative
+landmarks. Exact vector validation is unavailable because machine-readable
+Figure~4 data have not been published.
 
-\IfFileExists{../../figs/extension_2025/china_hk_event_short.pdf}{%
+\IfFileExists{../../figs/extension_2025/fk2025_figure4a_extended.pdf}{%
 \begin{figure}[ht]\centering
-\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_event_short.pdf}
-\caption{February 2025 event study, $[-6,+6]$.}\end{figure}}{}
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/fk2025_figure4a_extended.pdf}
+\caption{Import responses under the harmonized Fajgelbaum--Khandelwal
+local-projection design. The 2018--19 treatment cohorts are followed through
+$+24$ months using outcomes through December 2021. The 2025 axis is registered
+through $+12$, but the line stops at $+11$: with local outcomes ending in
+December 2025, the $+12$ risk set contains no treated observations. No
+unsupported endpoint or 2026 outcome is imputed.}\end{figure}}{}
 
-\IfFileExists{../../figs/extension_2025/china_hk_event_long.pdf}{%
+\IfFileExists{../../figs/extension_2025/fk2025_figure4b.pdf}{%
 \begin{figure}[ht]\centering
-\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_event_long.pdf}
-\caption{February 2025 event study, support-limited long horizon.}\end{figure}}{}
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/fk2025_figure4b.pdf}
+\caption{Applied-tariff event studies for China and the rest of the world in
+2025.}\end{figure}}{}
 
-\IfFileExists{../../figs/extension_2025/china_hk_dynamic_short.pdf}{%
-\begin{figure}[ht]\centering
-\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_dynamic_short.pdf}
-\caption{February 2025 dynamic pass-through, $[-6,+6]$.}\end{figure}}{}
+\subsection{Monthly cumulative local-projection pass-through}
 
-\IfFileExists{../../figs/extension_2025/china_hk_dynamic_long.pdf}{%
+The binary-treatment event study estimates cumulative outcome responses, not
+pass-through elasticities. We therefore estimate a continuous cumulative
+local-projection IV on the monthly origin--HS10 panel for each horizon
+$h\geq0$, where $h$ is measured in months:
+\begin{equation}
+100\left[\log p^{duty}_{ig,t+h}-\log p^{duty}_{ig,t-1}\right]
+=\alpha_{gt,h}+\alpha_{i,h}
++\beta_h\,100\left[
+\log(1+\tau^{applied}_{ig,t+h})
+-\log(1+\tau^{applied}_{ig,t-1})\right]
++\varepsilon_{ig,t,h}.
+\label{eq:cumulative-lp-iv}
+\end{equation}
+The cumulative applied-tariff change is instrumented with the same endpoint
+change in the independently constructed statutory tariff. The fixed effects
+are HS10--base-month and origin; standard errors are clustered by origin and
+HS8. Thus $\beta_h$ measures the cumulative change in duty-inclusive unit
+value per cumulative change in the tariff actually paid. Complete
+pass-through corresponds to $\beta_h=1$.
+
+We absorb the two high-dimensional fixed effects by alternating projections
+after recursively removing singleton groups. We then compute the scalar,
+exactly identified 2SLS coefficient from the residualized outcome, applied
+tariff, and statutory instrument. Inference uses the two-way CRV1 score
+covariance (origin plus HS8 minus their intersection) and a $t$ critical
+value based on the smaller cluster count. A synthetic equivalence test
+requires numerical agreement of point estimates and clustered standard
+errors within two percent of the formula-based reference implementation.
+
+Every horizon uses a common sample with positive pre-duty and duty-inclusive
+unit values at both endpoints. Since the Census definitions imply
+\begin{equation}
+\log p^{duty}_{igt}
+=\log p_{igt}+\log(1+\tau^{applied}_{igt}),
+\end{equation}
+the corresponding pre-duty coefficient satisfies
+$\widehat\beta^p_h=\widehat\beta^{duty}_h-1$ and has the same standard error.
+We estimate equation~\eqref{eq:cumulative-lp-iv} directly and reject a
+checkpoint unless the row-level identity holds to $10^{-8}$.
+
+For the 2018 episode, base months are January 2018--December 2019 and outcomes
+are followed through $h=24$. The independent paper-compatible statutory
+ledger ends in December 2019. We hold each origin--HS10's last nonmissing
+December-2019 rate fixed at later endpoints; an unmapped rate remains missing.
+For 2025, base months are January--December 2025 and the instrument is the
+independently constructed, calendar-day-weighted
+\texttt{statutory\_paper\_coverage\_rate}. Outcomes observed through December
+2025 support $h=0,\ldots,11$; no $h=12$ coefficient is imputed.
+
+The historical duty-inclusive coefficient is 0.940 (SE 0.096) on impact,
+1.090 (0.057) at six months, 1.201 (0.057) at twelve months, and 1.088
+(0.052) at twenty-four months. Its first-stage $F$ statistic is never below
+125.0. The results therefore indicate approximately complete cumulative
+pass-through, with a modest temporary overshoot at intermediate horizons.
+
+For 2025, duty-inclusive pass-through is 1.072 (SE 0.063) on impact, 1.037
+(0.085) at three months, 1.018 (0.104) at six months, and 1.113 (0.182) at
+eight months. It falls to 0.637 at month nine and to 0.365 at month eleven.
+The late observations are much less precise and use a changing risk set:
+effective observations fall from 1,465,779 at $h=0$ to 101,343 at $h=11$.
+The $h=11$ 95-percent interval is $[-0.340,1.069]$, and the first-stage
+$F$ remains 18.8. We therefore interpret the estimates through month eight
+as evidence of near-complete pass-through and the later decline as
+right-tail evidence with limited support, not as a precisely measured tariff
+reversal.
+
+\IfFileExists{../../figs/extension_2025/cumulative_pass_through_trade_war_2018.pdf}{%
 \begin{figure}[ht]\centering
-\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/china_hk_dynamic_long.pdf}
-\caption{February 2025 dynamic pass-through, support-limited long horizon.}\end{figure}}{}
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/cumulative_pass_through_trade_war_2018.pdf}
+\caption{Monthly cumulative local-projection IV pass-through for the 2018 tariff
+episode. The left panel reports the pre-duty-price response; the right panel
+reports duty-inclusive pass-through. Shaded regions are 95 percent confidence
+intervals.}\label{fig:cumulative-lp-2018}
+\end{figure}}{}
+
+\IfFileExists{../../figs/extension_2025/cumulative_pass_through_tariffs_2025.pdf}{%
+\begin{figure}[ht]\centering
+\includegraphics[width=0.96\textwidth]{../../figs/extension_2025/cumulative_pass_through_tariffs_2025.pdf}
+\caption{Monthly cumulative local-projection IV pass-through for the 2025 tariff
+episode. The last supported endpoint is $h=11$ because local outcomes end in
+December 2025. Shaded regions are 95 percent confidence intervals.}
+\label{fig:cumulative-lp-2025}
+\end{figure}}{}
+
+\subsection{Quarterly instrumental-variable estimates}
+
+This is a separate benchmark from the monthly cumulative local projections
+above. The preferred pass-through estimate collapses the data to
+origin--HS10--quarter and estimates
+\begin{equation}
+\Delta\log y_{igt}
+=\alpha_{gt}+\alpha_i+
+\beta\Delta\log(1+\tau^{applied}_{igt})+\varepsilon_{igt},
+\end{equation}
+instrumenting the applied tariff with the independently reconstructed
+statutory tariff.  Statutory rates are calendar-day weighted within month and
+then consumption-value weighted within quarter.  The benchmark uses the
+paper's January 2024--November 2025 cutoff; a separately labeled robustness
+includes December.  Entry-dependent content, certification, in-transit, and
+rate-provision ambiguities remain disclosed and are never silently replaced
+with zero.
+
+We use two explicit statutory instruments. The primary
+\texttt{paper\_coverage} instrument retains all rows with a mapped ordinary
+rate and applies every observable published partner--product schedule. It
+omits unobservable entry-level components, while preserving ambiguity flags.
+The \texttt{deterministic} sensitivity retains only simple ad-valorem ordinary
+rates, observable flat partner schedules, no complex content or certification
+scope, and no unverified inherited Section~201/232 component. Neither
+instrument is filled with an authors-package tariff.
+
+\begin{table}[ht]
+\centering
+\caption{Quarterly import pass-through: paper and independent replication}
+\label{tab:fk2025-table4}
+\begin{tabular}{lrr}
+\toprule
+Outcome & Paper estimate (SE) & Replication estimate (SE)\\
+\midrule
+First stage & 0.42 (0.06) & 0.376 (0.052)\\
+Import value & -1.81 (0.50) & -1.922 (0.552)\\
+Quantity & -1.71 (0.54) & -1.888 (0.622)\\
+Pre-duty unit value & -0.10 (0.06) & -0.033 (0.080)\\
+Duty-inclusive unit value & 0.90 (0.06) & 0.967 (0.080)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The paper-cutoff replication contains 1,224,214 observations, compared with
+1,192,687 in the paper, and has a first-stage $F$-statistic of 51.51, compared
+with 52.4. The first stage, value, and quantity estimates are within one
+reported paper standard error. The two price estimates are 0.0668 from the
+reported values, narrowly outside the registered 0.0600 tolerance. Their
+accounting identity holds exactly:
+\begin{equation}
+\widehat\beta_{p^{duty}}-\widehat\beta_p=1.
+\end{equation}
+Accordingly, the preregistered paper-cutoff Table~4 gate is recorded as a
+narrow failure. The complete-December robustness produces -0.044 for
+pre-duty price and 0.956 for duty-inclusive price and passes all registered
+Table~4 checks. The strict deterministic sensitivity contains only 369,936
+observations and is not treated as the paper-comparable baseline.
+
+Monthly, quarterly, and semiannual robustness estimates use period-over-period
+changes. The annual specification follows Table A.3 by taking year-over-year
+changes in quarterly observations, such as 2025Q1 relative to 2024Q1.
+The semiannual pre-duty-price estimate is -0.155, nearly identical to the
+paper's -0.15. The annual estimate is -0.014 with $F=18.42$ and 669,849
+observations, materially different from the paper's -0.08, $F=1421.4$, and
+532,390 observations. This annual discrepancy remains unresolved and is not
+classified as a replicated robustness result.
